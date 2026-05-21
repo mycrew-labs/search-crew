@@ -1,0 +1,19 @@
+# Search Crew · 各 subagent 上限（用户态 active）
+#
+# 这些是硬上限的兜底值，避免 deep-search 无限循环 / fast-search 抓太多。
+# 想加大 / 减小可以直接改。
+
+last_updated: "2026-05-21"
+
+fast_search:
+  max_results: 5         # 每次抓多少个搜索结果
+  fetch_timeout_sec: 30  # 单次 fetch 超时
+
+site_search:
+  max_results: 10
+  fetch_timeout_sec: 60
+  browser_step_timeout_sec: 60   # 浏览器单次操作硬上限
+
+deep_search:
+  max_rounds: 5          # 跨轮硬上限（OPEN-AGENT-002-A 方案 C）
+  per_round_breadth: 4   # 每轮并行派出多少个 subagent

@@ -1,0 +1,27 @@
+# Search Crew · Backend 估算单价表（用户态 active）
+#
+# 这里的单价用于 P-USAGE-001 / 003 的 cost 估算。允许与真实账单有误差。
+# 单价过时你直接改本文件；plugin 升级不会覆盖。
+#
+# 单位：USD per request（除非 endpoint 显式注明 per token）
+
+last_updated: "2026-05-21"
+unit: USD
+
+jina:
+  search: 0.0015      # https://jina.ai/api-dashboard/
+  reader: 0.0007
+
+serper:
+  search: 0.001       # https://serper.dev/pricing
+
+# 不计费的内置 fallback / 本地工具（保留以记调用次数，cost 强制为 0）
+zero_cost:
+  - webfetch-fallback
+  - websearch-fallback
+  - chrome-devtools-mcp
+
+# 未来扩展示例（按 backend / endpoint 分别填）
+# openai:
+#   gpt-5-input-per-token: 0.0000025
+#   gpt-5-output-per-token: 0.00001

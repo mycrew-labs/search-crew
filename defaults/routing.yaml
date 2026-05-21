@@ -1,0 +1,54 @@
+# Search Crew · 循证路由起点表（用户态 active）
+#
+# 这是「先在这里搜」的起点清单，不是禁区。整体逻辑见 USER_DESIGN P-ROUTE-001：
+#   1. 命中主题 → 先在起点路径搜
+#   2. 不足 → 扩展通用搜索
+#   3. 关键结论 → 回起点站复核
+#   4. 未通过复核 → 必须显式标注
+#
+# 你可以自由增删 / 调整 / 关闭任何条目。AI 永远不会自动改本文件；想到新规则会写到
+# pending/，由你审核晋升。
+
+last_updated: "2026-05-21"
+
+topics:
+  - name: clinical-research
+    description: 临床研究
+    sites:
+      - clinicaltrials.gov
+      - pubmed.ncbi.nlm.nih.gov
+    hard_rule: true   # 硬规则：禁止用通用搜索代替
+
+  - name: patents
+    description: 专利
+    sites:
+      - patents.google.com
+      - espacenet.com
+      - pss-system.cnipa.gov.cn   # 中国国家知识产权局
+      - zhihuiya.com              # 智慧芽
+    hard_rule: true
+
+  - name: academic-papers
+    description: 学术论文
+    sites:
+      - arxiv.org
+      - semantic-scholar.org
+
+  - name: language-library-docs
+    description: 编程语言 / 框架 / 库的使用说明
+    sites:
+      - context7    # 通用 LLM docs API
+      # 该项目自家官方文档站：由主 agent 按当下问题动态选取（如 react.dev / vuejs.org / pytorch.org ...）
+
+  - name: official-product-docs
+    description: 官方产品文档（云 / 工具 / 中间件）。由主 agent 按当下问题动态选取常见示例：docs.aws.amazon.com / cloud.google.com / docs.docker.com / kubernetes.io 等
+    sites: []
+    hard_rule: true
+
+  - name: package-registries
+    description: 包仓库
+    sites:
+      - pypi.org
+      - npmjs.com
+      - crates.io
+      - github.com   # Go modules / GitHub Releases
