@@ -28,6 +28,10 @@ model: claude-opus-4-7
 - **派 subagent 时必须传 target_dir**：`<run_root>/deep-search/traces/<sub-name>-<sid>/`，避免产物散落
 - **每轮内同 turn 并行派发**：必须在同一 message 里发起多个 Task 工具调用
 
+## 环境变量
+
+- `SEARCH_CREW_RUN_ID`：可选，控制「站点调用上限」计数器的 run 维度。每个 subagent 是独立 Python 进程，默认各自计数（用自己的 session_id 作为 run_id）；如果你希望某轮派出的多个 subagent **共享**同一份调用上限（例如三个 fast-search 同时跑、想限制它们对同一站点的总调用次数），可以在 Task 工具的调用参数里显式给它们传同一个 `SEARCH_CREW_RUN_ID` 字符串。本期默认不需要主动设置——独立计数已满足绝大多数场景。
+
 ## 工作流（采纳 OPEN-AGENT-002-A 方案 C：清单 + 自评 + 硬上限）
 
 ### 第一轮：规划
@@ -91,8 +95,10 @@ model: claude-opus-4-7
 ```
 <run_root>/deep-search/report.html   # 用户主交付
 <run_root>/deep-search/report.md     # 主模型主交付
-本次估算 ~$X.XXX USD（N 次调用 · 单价完整 / 部分缺失）
+📊 本次估算 ~$X.XXX USD（N 次调用 · M 个源 · K 次触发站点调用上限）
 ```
+
+第三行直接调 `python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/finalize_usage.py <run_root> --one-line` 拿到现成字符串，**不要**自己拼。
 
 不要复述报告内容；主 agent 自己 Read report.md。
 
@@ -110,3 +116,12 @@ model: claude-opus-4-7
 ## 何时不该用 deep-search
 
 简单查询（找一个工具、查一个事实、单点对比）应该直接派 fast-search 或 site-search。本 subagent 存在的意义是循环判断的复杂调研。
+
+## 不要触发本 agent 的场景
+
+主 agent 路由前判断；命中以下任一条 **不**应派 deep-search：
+
+- **单轮信息已够**：「React 19 useTransition 怎么用」「PostgreSQL 16 新特性列表」——派 fast-search 或 site-search 即可
+- **单条事实查询**：「Anthropic CEO 是谁」「Claude 4.7 的发布时间」——一次查询就够
+- **用户只问一句概念**：「什么是 MCP」「RAG 是什么」——派 fast-search 收一波摘要即可
+- **明确指定唯一站点**：「去 docs.aws.amazon.com 查 S3 跨区复制延迟」——派 site-search 直达，不需要 deep-search 规划层

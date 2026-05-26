@@ -106,3 +106,12 @@ python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/site_search.py --site 
 
 - 不做跨主题深度调研（→ deep-search）
 - 不写最终 HTML 报告（→ deep-search 的活）
+
+## 不要触发本 agent 的场景
+
+主 agent 路由前判断；命中以下任一条 **不**应派 site-search：
+
+- **无明确目标站点**：「帮我搜下最近的 AI 新闻」「找几篇关于 RAG 的文章」——没有官方源指向，应派 fast-search
+- **跨多站点综述**：「综述当下主流的 LLM 推理框架」「对比 vLLM / TGI / TensorRT-LLM」——单站搜不够，应派 fast-search 或 deep-search
+- **读取已知 URL**：「打开这个页面看一下：https://...」——直接 `fetch.py`，不需要再搜索
+- **模糊关键词探索**：「搜下『性能优化』」「查查『最佳实践』」——关键词太宽，单站点搜结果差，应先派 fast-search 收窄

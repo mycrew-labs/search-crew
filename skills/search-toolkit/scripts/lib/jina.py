@@ -47,6 +47,7 @@ def search(query: str, *, max_results: int = 10, language: str | None = None) ->
         endpoint="search",
         headers=headers,
         params=params,
+        query=query,
     )
 
     items = (data or {}).get("data") or []

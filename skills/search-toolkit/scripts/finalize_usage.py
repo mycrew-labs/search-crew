@@ -46,20 +46,31 @@ def _load_records(jsonl: pathlib.Path) -> list[dict[str, Any]]:
 
 
 def _aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
-    total_calls = len(records)
+    # call_cap_exceeded 记录单独统计，不计入「调用总数」
+    real_records = [r for r in records if r.get("status") != "call_cap_exceeded"]
+    skipped_records = [r for r in records if r.get("status") == "call_cap_exceeded"]
+
+    total_calls = len(real_records)
     total_cost = 0.0
     by_backend: dict[str, dict[str, float]] = defaultdict(lambda: {"calls": 0, "cost": 0.0})
     by_subagent: dict[str, dict[str, float]] = defaultdict(lambda: {"calls": 0, "cost": 0.0})
     unknown_backends: set[str] = set()
+    # 搜索摘要：{backend -> [queries]}
+    queries_by_backend: dict[str, list[str]] = defaultdict(list)
+    distinct_backends: set[str] = set()
 
-    for r in records:
+    for r in real_records:
         backend = r.get("backend", "unknown")
         subagent = r.get("subagent", "unknown")
         cost = r.get("cost_estimate_usd")
         source = r.get("pricing_source", "unknown")
+        query = (r.get("query") or "").strip()
 
         by_backend[backend]["calls"] += 1
         by_subagent[subagent]["calls"] += 1
+        distinct_backends.add(backend)
+        if query:
+            queries_by_backend[backend].append(query)
 
         if isinstance(cost, (int, float)):
             by_backend[backend]["cost"] += cost
@@ -67,6 +78,13 @@ def _aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
             total_cost += cost
         elif source == "unknown":
             unknown_backends.add(f"{backend}:{r.get('endpoint', '')}")
+
+    # 已跳过（call_cap_exceeded）
+    skipped_by_backend: dict[str, list[str]] = defaultdict(list)
+    for r in skipped_records:
+        b = r.get("backend", "unknown")
+        q = (r.get("query") or "").strip()
+        skipped_by_backend[b].append(q)
 
     completeness = "full"
     if unknown_backends and total_calls > 0:
@@ -79,7 +97,22 @@ def _aggregate(records: list[dict[str, Any]]) -> dict[str, Any]:
         "by_subagent": {k: {"calls": v["calls"], "cost": round(v["cost"], 4)} for k, v in by_subagent.items()},
         "pricing_completeness": completeness,
         "unknown_backends": sorted(unknown_backends),
+        # 搜索摘要素材
+        "queries_by_backend": {k: _dedup_preserve_order(v) for k, v in queries_by_backend.items()},
+        "skipped_by_backend": {k: _dedup_preserve_order(v) for k, v in skipped_by_backend.items()},
+        "distinct_source_count": len(distinct_backends),
+        "skipped_count": len(skipped_records),
     }
+
+
+def _dedup_preserve_order(items: list[str]) -> list[str]:
+    seen: set[str] = set()
+    out: list[str] = []
+    for it in items:
+        if it and it not in seen:
+            seen.add(it)
+            out.append(it)
+    return out
 
 
 def _render_md(agg: dict[str, Any], scope: str, run_id: str) -> str:
@@ -120,20 +153,59 @@ def _render_md(agg: dict[str, Any], scope: str, run_id: str) -> str:
             lines.append(f"- {u}")
         lines.append("")
 
+    # 搜索摘要段（循证传递的过程层信号；用户主对话不带，CLI 可查 / 直接 Read）
+    queries_by_backend = agg.get("queries_by_backend") or {}
+    skipped_by_backend = agg.get("skipped_by_backend") or {}
+    if queries_by_backend or skipped_by_backend:
+        lines.append("## 搜索摘要\n")
+        for backend, queries in sorted(queries_by_backend.items()):
+            term_str = "；".join(queries) if queries else "（未记录查询词）"
+            lines.append(
+                f"- 网站：{backend} | 查询词：{term_str} | 次数：{agg['by_backend'][backend]['calls']}"
+            )
+        for backend, queries in sorted(skipped_by_backend.items()):
+            term_str = "；".join(q for q in queries if q) or "（未记录查询词）"
+            lines.append(f"- 已跳过：{backend}，原因：触发站点调用上限（尝试查询词：{term_str}）")
+        lines.append("")
+
     lines.append("> 详细打点见 `usage.jsonl`（jsonl 一行一条）。")
     return "\n".join(lines)
+
+
+def _render_one_line(agg: dict[str, Any]) -> str:
+    """主 agent 用的一行 cost 总览：『N 次调用 · M 个源 · K 次触发站点调用上限』。"""
+    calls = agg["calls"]
+    cost = agg["cost_estimate_usd"]
+    sources = agg.get("distinct_source_count", 0)
+    skipped = agg.get("skipped_count", 0)
+
+    parts = [f"{calls} 次调用", f"{sources} 个源"]
+    if skipped > 0:
+        parts.append(f"{skipped} 次触发站点调用上限")
+    detail = " · ".join(parts)
+    return f"📊 本次估算 ~${cost:.4f} USD（{detail}）"
 
 
 def main() -> int:
     ap = argparse.ArgumentParser(description="Search Crew usage 聚合")
     ap.add_argument("run_root", type=pathlib.Path)
     ap.add_argument("--subagent", default=None, help="只聚合本 subagent 的切片")
+    ap.add_argument(
+        "--one-line",
+        action="store_true",
+        help="只输出主 agent 用的一行 cost 总览（不写文件）",
+    )
     args = ap.parse_args()
 
     run_root: pathlib.Path = args.run_root.resolve()
     if not run_root.exists():
         print(f"run_root 不存在: {run_root}", file=sys.stderr)
         return 1
+
+    if args.one_line:
+        agg = _aggregate(_load_records(run_root / "usage.jsonl"))
+        print(_render_one_line(agg))
+        return 0
 
     all_records = _load_records(run_root / "usage.jsonl")
     if args.subagent:

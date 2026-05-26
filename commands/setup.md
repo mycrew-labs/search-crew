@@ -15,6 +15,7 @@ python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/check_backends.py
 
 - 可用 backend
 - 未配置 backend（给注册 URL + `~/.zshrc` 配置模板）
+- **AI 综述 backend**（`ai_summary_backends` 段）：三家 grok / gemini / doubao 各自状态；任一可用即整层可用；全未配会自动回落 jina——这种情况下务必在汇报里指出「可选的 AI 综述层未启用，缺失：`GROK_API_KEY` / `GEMINI_API_KEY` / `DOUBAO_API_KEY`」
 - Chrome 是否装了（mac: `mdfind kMDItemCFBundleIdentifier == com.google.Chrome`；linux: `which google-chrome chromium`）
 - chrome-devtools-mcp 是否能起（`npx chrome-devtools-mcp@latest --version`）
 
@@ -28,6 +29,11 @@ ls ~/.config/search-crew/ 2>&1 || echo "未初始化"
   ```bash
   python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/seed_user_config.py
   ```
+- 如果 active 已存在但 plugin 升级带来新顶层段（例如 `ai_summary:` / `call_cap:`）→ 跑 merge：
+  ```bash
+  python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/seed_user_config.py --merge
+  ```
+  仅追加缺失的顶层段，用户已有内容一字不动。
 
 ### 3. 醒目展示 onboarding 备份提示（P-CONFIG-001）
 

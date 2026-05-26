@@ -7,6 +7,18 @@ description: Search Crew 的搜索 / 抓取 / 站点 API / 产物组织工具包
 
 供 Search Crew subagent 调用的工具集。所有脚本都遵循统一 JSON CLI 契约，方便从 Bash 调起。
 
+> **backend 是当前实现，不是本 skill 的身份**。当前 backend 包括 Jina / Serper（通用搜索 + 抓取）、grok / gemini / doubao（AI 综述）、GitHub / MDN / Algolia 等站点适配器（精确搜索）。未来可替换 / 增加任意 backend，本 skill 的接口契约（统一 JSON 输出、`lib/_http.py` 出口打点、产物组织约定）保持不变。
+
+## 启动强制预检（site-search 必做）
+
+site-search subagent 接到任务后、调用任何 backend 或 MCP **之前** 必跑：
+
+1. `python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/site_search.py --list-adapters` 查实时适配器清单
+2. 确认目标站是否已有 adapter
+3. 若已有，确认 adapter status（`✅` / `⚠️ best-effort` / `降级`）
+
+跳过预检直接拼调用参数 = 缺陷。`--list-adapters` 输出快照应在工作日志里留痕。
+
 ## 路径
 
 所有脚本：`$CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/`。

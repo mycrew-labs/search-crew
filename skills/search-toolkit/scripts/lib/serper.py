@@ -46,6 +46,7 @@ def search(query: str, *, max_results: int = 10, language: str | None = None) ->
         endpoint="search",
         headers=headers,
         json_body=body,
+        query=query,
     )
     organic = (data or {}).get("organic") or []
 

@@ -43,8 +43,13 @@ def record(
     status: int | str,
     latency_ms: int,
     tokens_or_units: int | None = 1,
+    query: str | None = None,
 ) -> None:
-    """统一打点入口（由 _http.py 调用，不要在业务代码里手调）。"""
+    """统一打点入口（由 _http.py 调用，不要在业务代码里手调）。
+
+    `query` 可选；当 backend 是搜索类（jina / serper / grok / gemini / doubao /
+    site-search adapter）时建议传入，用于 finalize_usage.py 渲染「搜索摘要」段。
+    """
     sid = runtime.get_session_id()
     subagent = runtime.current_subagent()
     cost, source = pricing.estimate(backend, endpoint, tokens_or_units)
@@ -60,6 +65,7 @@ def record(
         "tokens_or_units": tokens_or_units,
         "cost_estimate_usd": cost,
         "pricing_source": source,
+        "query": (query or "").strip() or None,
     }
 
     # 1. per-run 临时

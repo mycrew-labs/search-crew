@@ -17,3 +17,11 @@ site_search:
 deep_search:
   max_rounds: 5          # 跨轮硬上限（OPEN-AGENT-002-A 方案 C）
   per_round_breadth: 4   # 每轮并行派出多少个 subagent
+
+# 同 run 同 backend 的调用次数上限（防 subagent 反复追打同一源）
+# - 触发上限时 lib/_http.py 直接 raise BackendError(reason="call_cap_exceeded")，不真正发请求
+# - HTTP 429 / 5xx 在调用方主动重发时才增计数；request_json 内部不 retry
+# - 跨 run（不同 SEARCH_CREW_RUN_ID / session_id / PID）计数独立
+call_cap:
+  ai_backend: 1          # grok / doubao / gemini 同 run 上限
+  non_ai_backend: 2      # jina / serper / 站点 adapter / chrome-devtools-mcp 等同 run 上限

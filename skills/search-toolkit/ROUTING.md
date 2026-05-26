@@ -16,6 +16,27 @@
 
 ---
 
+## AI 综述层（未命中硬规则时的第一跳）
+
+query 未命中下方任一硬规则时，subagent **优先**调用一个 AI 综述 backend 作为「先建立假设」的入口，再决定是否补充 jina / serper / 站点搜索。
+
+- **触发条件**：(1) `~/.config/search-crew/routing.yaml` 中 `ai_summary.enabled: true`；(2) query 未命中任一 `hard_rule: true` 的 topic；(3) `selection_order` 中至少一个 backend 的 key 已配
+- **三家选源经验**（subagent 在 prompt 内按语言 + 语境判断）：
+  - `grok`：英文舆论 / 实时讨论 / Twitter/X 语境 / 热点追踪（需 `GROK_API_KEY`）
+  - `doubao`：火山方舟（托管 Doubao / DeepSeek / Kimi 等），中文语境 / 字节生态 / 中文热点（需 `DOUBAO_API_KEY`）
+  - `gemini`：全球网页 / 英文综述 / 通用信息检索（需 `GEMINI_API_KEY`）
+  - model 用哪个由 `~/.config/search-crew/routing.yaml` 的 `ai_summary.models.<backend>.{fast,deep}` 决定，不在 env 配
+- **全部 key 缺失**：自动回落到 `ai_summary.fallback_on_no_key`（默认 `jina`），与现有 `WEBSEARCH_FALLBACK` 机制一致
+- **关闭整层**：用户态 `routing.yaml` 改 `ai_summary.enabled: false`
+- **与硬规则的关系**：硬规则永远优先；AI 综述层只在「query 未命中任一硬规则」时启用
+
+调用方式：
+
+```bash
+python3 search.py --query "..." --prefer ai                  # 让 search.py 自己按 selection_order 选
+python3 search.py --query "..." --prefer ai --ai-backend grok # 显式指定哪一家
+```
+
 ## 路由起点表
 
 ### 临床研究【硬规则】

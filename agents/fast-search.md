@@ -93,3 +93,13 @@ react@19, suspense, useTransition, ...
 - 不做站内精确搜索（→ site-search）
 - 不做跨主题深度调研（→ deep-search）
 - 不写最终 HTML 报告（→ deep-search 的活）
+
+## 不要触发本 agent 的场景
+
+主 agent 路由前判断；命中以下任一条 **不**应派 fast-search：
+
+- **单条事实查询**：「React 19 引入了什么新 hook」「python 3.13 release date」——直接答或派 site-search 复核足够
+- **已有具体 URL 只需 fetch**：「读一下这个页面：https://...」——直接调 `fetch.py`，不需要搜索
+- **需要站内精确搜索**：「去 react.dev 查 Suspense 用法」「github 上 vLLM 的 issue」——应派 site-search
+- **需要权威源复核**：临床 / 专利 / 学术 / 官方文档主题——应派 site-search 起点直达，**不要**让 fast-search 用通用搜索绕弯
+- **需要多轮跨主题挖掘**：「调研开源 LLM 推理框架的完整生态」「写一份对比报告」——应派 deep-search

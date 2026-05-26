@@ -9,6 +9,7 @@
 from __future__ import annotations
 
 import json
+import os
 import time
 import urllib.error
 import urllib.parse
@@ -20,8 +21,85 @@ from . import BackendError
 DEFAULT_TIMEOUT = 30
 USER_AGENT = "search-crew/0.1 (+https://github.com/mycrew-labs/search-crew)"
 
+# 站点调用上限（同 run 同 backend 计数器）
+# - run_id 来源：SEARCH_CREW_RUN_ID env > runtime.get_session_id() > PID
+# - dict 跨进程不共享；每个 subagent 是独立 Python 进程，各自计数（设计明确接受）
+# - 默认：AI backend 1 次、非 AI backend 2 次；可在 ~/.config/search-crew/limits.yaml 覆盖
+_call_counter: dict[tuple[str, str], int] = {}
+_AI_BACKENDS = frozenset({"grok", "gemini", "doubao"})
+_DEFAULT_AI_CAP = 1
+_DEFAULT_NON_AI_CAP = 2
 
-def _record_call(*, backend: str, endpoint: str, status: int | str, latency_ms: int, units: int | None) -> None:
+
+def _run_id() -> str:
+    """run_id 优先级：env > runtime.session_id > PID。"""
+    v = os.environ.get("SEARCH_CREW_RUN_ID", "").strip()
+    if v:
+        return v
+    try:
+        from . import runtime  # noqa: PLC0415  延迟导入
+
+        return runtime.get_session_id()
+    except Exception:
+        return f"pid-{os.getpid()}"
+
+
+def _cap_for(backend: str) -> int:
+    """读 limits.yaml call_cap 段，缺失回落默认。"""
+    try:
+        from . import config  # noqa: PLC0415  延迟导入
+
+        limits = config.load_limits() or {}
+        cap_cfg = limits.get("call_cap") or {}
+        if backend in _AI_BACKENDS:
+            return int(cap_cfg.get("ai_backend", _DEFAULT_AI_CAP))
+        return int(cap_cfg.get("non_ai_backend", _DEFAULT_NON_AI_CAP))
+    except Exception:
+        return _DEFAULT_AI_CAP if backend in _AI_BACKENDS else _DEFAULT_NON_AI_CAP
+
+
+def _check_and_increment_cap(backend: str, query: str | None = None) -> None:
+    """达到上限直接 raise；未达上限自增。"""
+    key = (_run_id(), backend)
+    current = _call_counter.get(key, 0)
+    cap = _cap_for(backend)
+    if current >= cap:
+        # 上限触发也要打点（status: call_cap_exceeded），保留痕迹供 usage-summary 渲染「已跳过」
+        try:
+            from . import usage  # noqa: PLC0415  延迟导入
+
+            usage.record(
+                backend=backend,
+                endpoint="call_cap_exceeded",
+                status="call_cap_exceeded",
+                latency_ms=0,
+                tokens_or_units=0,
+                query=query,
+            )
+        except Exception:
+            pass
+        raise BackendError(
+            backend,
+            f"触发站点调用上限（cap={cap}，已用 {current}）",
+            retryable=False,
+        )
+    _call_counter[key] = current + 1
+
+
+def reset_call_counter() -> None:
+    """供测试 / 多 run 场景显式清空计数器（生产代码不应调用）。"""
+    _call_counter.clear()
+
+
+def _record_call(
+    *,
+    backend: str,
+    endpoint: str,
+    status: int | str,
+    latency_ms: int,
+    units: int | None,
+    query: str | None = None,
+) -> None:
     """打点钩子。延迟 import 避免循环依赖。失败不阻塞业务。"""
     try:
         from . import usage  # noqa: PLC0415  延迟导入
@@ -32,6 +110,7 @@ def _record_call(*, backend: str, endpoint: str, status: int | str, latency_ms: 
             status=status,
             latency_ms=latency_ms,
             tokens_or_units=units,
+            query=query,
         )
     except Exception as e:  # 打点不应阻塞业务
         import sys
@@ -50,11 +129,15 @@ def request_json(
     json_body: Any = None,
     timeout: int = DEFAULT_TIMEOUT,
     units: int | None = 1,
+    query: str | None = None,
 ) -> Any:
     """发起 JSON 请求并返回反序列化结果。
 
-    `backend` / `endpoint` 用于打点；`units` 用于 cost 估算（默认 1 次请求 = 1 unit）。
+    `backend` / `endpoint` 用于打点；`units` 用于 cost 估算（默认 1 次请求 = 1 unit）；
+    `query` 可选，搜索类 backend 建议传，用于「搜索摘要」段渲染。
     """
+    _check_and_increment_cap(backend, query=query)
+
     if params:
         sep = "&" if "?" in url else "?"
         url = f"{url}{sep}{urllib.parse.urlencode(params, doseq=True)}"
@@ -96,6 +179,7 @@ def request_json(
             status=status,
             latency_ms=int((time.monotonic() - start) * 1000),
             units=units,
+            query=query,
         )
 
     if not raw:
@@ -115,8 +199,11 @@ def request_text(
     headers: dict[str, str] | None = None,
     timeout: int = DEFAULT_TIMEOUT,
     units: int | None = 1,
+    query: str | None = None,
 ) -> str:
     """发起请求返回原文（用于抓取页面 / markdown）。"""
+    _check_and_increment_cap(backend, query=query)
+
     final_headers = {"User-Agent": USER_AGENT}
     if headers:
         final_headers.update(headers)
@@ -140,4 +227,5 @@ def request_text(
             status=status,
             latency_ms=int((time.monotonic() - start) * 1000),
             units=units,
+            query=query,
         )

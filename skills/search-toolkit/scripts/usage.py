@@ -128,6 +128,53 @@ def cmd_by_backend(calls: list[dict[str, Any]]) -> None:
     _print_table(["backend", "次数", "估算 cost"], rows)
 
 
+def cmd_show_queries(runs: list[dict[str, Any]], calls: list[dict[str, Any]], n: int) -> None:
+    """列出最近 N 次 run 的「搜索摘要」段。直接从 calls.jsonl 按 run_id 分组渲染。"""
+    sub_runs = runs[-n:][::-1]
+    if not sub_runs:
+        print("（无 run 记录）")
+        return
+    run_ids: set[str] = {str(r.get("run_id")) for r in sub_runs if r.get("run_id")}
+    calls_by_run: dict[str, list[dict[str, Any]]] = defaultdict(list)
+    for c in calls:
+        rid = c.get("run_id")
+        if isinstance(rid, str) and rid in run_ids:
+            calls_by_run[rid].append(c)
+
+    for run in sub_runs:
+        rid = run.get("run_id", "?")
+        print(f"## run {rid[:12]}… · ended {run.get('ended_at', '?')}\n")
+        run_calls = calls_by_run.get(rid, [])
+        queries_by_backend: dict[str, list[str]] = defaultdict(list)
+        skipped_by_backend: dict[str, list[str]] = defaultdict(list)
+        backend_call_count: dict[str, int] = defaultdict(int)
+        for c in run_calls:
+            b = c.get("backend", "unknown")
+            q = (c.get("query") or "").strip()
+            if c.get("status") == "call_cap_exceeded":
+                skipped_by_backend[b].append(q)
+            else:
+                backend_call_count[b] += 1
+                if q:
+                    queries_by_backend[b].append(q)
+
+        if not queries_by_backend and not skipped_by_backend:
+            print("（本次 run 无搜索类调用，或调用未携带 query 字段）\n")
+            continue
+
+        seen = set()
+        for backend in sorted(queries_by_backend.keys()):
+            qs = [q for q in queries_by_backend[backend] if not (q in seen or seen.add(q))]
+            seen = set(queries_by_backend[backend])
+            term_str = "；".join(qs) if qs else "（未记录）"
+            print(f"- 网站：{backend} | 查询词：{term_str} | 次数：{backend_call_count[backend]}")
+        for backend in sorted(skipped_by_backend.keys()):
+            qs = [q for q in skipped_by_backend[backend] if q]
+            term_str = "；".join(qs) if qs else "（未记录）"
+            print(f"- 已跳过：{backend}，原因：触发站点调用上限（尝试查询词：{term_str}）")
+        print()
+
+
 def main() -> int:
     ap = argparse.ArgumentParser(description="Search Crew 跨 run 用量查询")
     ap.add_argument("--last", type=int, default=None, help="列最近 N 次 run（默认 10）")
@@ -135,6 +182,11 @@ def main() -> int:
     ap.add_argument("--by-week", action="store_true")
     ap.add_argument("--by-month", action="store_true")
     ap.add_argument("--by-backend", action="store_true")
+    ap.add_argument(
+        "--show-queries",
+        action="store_true",
+        help="列最近 --last N 次 run 的「搜索摘要」段（网站 / 查询词 / 次数 / 已跳过）",
+    )
     ap.add_argument("--since", default=None, help="YYYY-MM-DD")
     ap.add_argument("--raw", action="store_true", help="直接 cat calls.jsonl")
     args = ap.parse_args()
@@ -168,6 +220,9 @@ def main() -> int:
         return 0
     if args.by_backend:
         cmd_by_backend(calls)
+        return 0
+    if args.show_queries:
+        cmd_show_queries(runs, calls, args.last or 10)
         return 0
 
     cmd_last(runs, args.last or 10)

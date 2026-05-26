@@ -56,6 +56,37 @@ def _check_github_token() -> dict:
     }
 
 
+def _check_ai_summary() -> dict:
+    """AI 综述 backend 三家检查（任一可用即整层可用）。"""
+    spec = [
+        ("grok", "GROK_API_KEY", "https://console.x.ai", "偏英文舆论 / 实时讨论"),
+        ("doubao", "DOUBAO_API_KEY", "https://www.volcengine.com/product/ark", "火山方舟（Doubao/DeepSeek 等），偏中文语境"),
+        ("gemini", "GEMINI_API_KEY", "https://aistudio.google.com/app/apikey", "偏全球综述 / 英文资料"),
+    ]
+    result = {}
+    available = 0
+    missing_envs = []
+    for name, var, register, note in spec:
+        if env(var):
+            result[name] = {"available": True, "note": note}
+            available += 1
+        else:
+            result[name] = {
+                "available": False,
+                "note": note,
+                "register": register,
+                "env_template": f'export {var}="..."  # 加到 ~/.zshrc',
+            }
+            missing_envs.append(var)
+    result["_summary"] = {
+        "available_count": available,
+        "total": len(spec),
+        "fallback": "未配任何 AI key 时 search.py --prefer ai 自动回落到 jina",
+        "missing_envs": missing_envs,
+    }
+    return result
+
+
 def _check_chrome() -> dict:
     system = platform.system()
     if system == "Darwin":
@@ -132,6 +163,7 @@ def main() -> int:
             },
             "webfetch_fallback": {"available": True, "note": "Claude Code 内置"},
         },
+        "ai_summary_backends": _check_ai_summary(),
         "github_token": _check_github_token(),
         "browser": {
             "chrome": _check_chrome(),

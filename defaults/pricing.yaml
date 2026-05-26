@@ -15,6 +15,17 @@ jina:
 serper:
   search: 0.001       # https://serper.dev/pricing
 
+# AI 综述 backend：三家计费颗粒不同（grok 按搜索次数 + token；doubao 按 token；
+# gemini grounding 按 1k requests）。本期先记录调用次数，cost 留 null，等
+# B-005-ext 接入精确单价表后再填。pricing_source 会标 "unknown"，usage-summary
+# 会在末尾给出「⚠️ 单价未知」警告。
+grok:
+  responses: null
+doubao:
+  responses: null
+gemini:
+  generateContent: null
+
 # 不计费的内置 fallback / 本地工具（保留以记调用次数，cost 强制为 0）
 zero_cost:
   - webfetch-fallback

@@ -9,7 +9,41 @@
 # 你可以自由增删 / 调整 / 关闭任何条目。AI 永远不会自动改本文件；想到新规则会写到
 # pending/，由你审核晋升。
 
-last_updated: "2026-05-21"
+last_updated: "2026-05-22"
+
+# AI 综述层：query 未命中下方 topics 任一硬规则时的「第一跳」起点。
+#
+# - selection_order：按顺序看第一个 key 已配的 backend 用它
+# - 三家选源经验：grok 偏英文舆论 / 实时讨论；doubao（火山方舟，托管 Doubao/DeepSeek 等）
+#   偏中文热点 / 字节生态；gemini 偏全球综述 / 英文资料；具体在 subagent prompt 内按语言 + 语境再细判
+# - 全部 AI key 缺失 → 回落 fallback_on_no_key 指定的通用 backend（默认 jina）
+# - enabled=false → 完全关闭本层，回到原有 jina / serper 路径
+# - 硬规则 topics（hard_rule: true）优先级始终高于 AI 综述层
+#
+# models：每个 backend 按 subagent 分层选 model（不在代码 hardcode，全在这里）。
+# - fast-search 用 fast 档（便宜、量大）；deep-search 用 deep 档（强、保质量）
+# - model 填各厂商的【API model ID】：
+#   - grok（xAI）：grok-4-fast / grok-4.3 等，见 https://console.x.ai
+#   - doubao（火山方舟）：带日期的小写 ID，如 doubao-seed-2-0-lite-260428；
+#     列已开通 model：curl -s https://ark.cn-beijing.volces.com/api/v3/models -H "Authorization: Bearer $DOUBAO_API_KEY"
+#   - gemini（Google）：gemini-2.5-flash-lite / gemini-3.5-flash 等
+ai_summary:
+  enabled: true
+  selection_order:
+    - grok
+    - doubao
+    - gemini
+  fallback_on_no_key: jina
+  models:
+    grok:
+      fast: grok-4-fast
+      deep: grok-4.3
+    doubao:
+      fast: doubao-seed-2-0-mini-260428
+      deep: doubao-seed-2-0-pro-260215
+    gemini:
+      fast: gemini-2.5-flash-lite
+      deep: gemini-3.5-flash
 
 topics:
   - name: clinical-research

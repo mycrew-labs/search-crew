@@ -2,6 +2,62 @@
 
 ## 三种常见扩展
 
+### 0. AI 综述 backend（grok / gemini / doubao）
+
+`borrow-smart-search-web-reader` change 引入。backend 用品牌命名；API key 走 env（secret），
+model 走 routing.yaml（按 fast/deep 分层，不在代码 hardcode）。
+
+| backend | 偏好场景 | API | env API key | model 配在哪 |
+|---|---|---|---|---|
+| `grok` | 英文舆论 / 实时讨论 / X | xAI Agent Tools API（`/v1/responses` + web_search） | `GROK_API_KEY` | `ai_summary.models.grok.{fast,deep}` |
+| `doubao` | 中文语境 / 字节生态 / 中文热点（火山方舟，托管 Doubao / DeepSeek / Kimi 等） | 火山方舟 Responses API（`/api/v3/responses` + web_search） | `DOUBAO_API_KEY` | `ai_summary.models.doubao.{fast,deep}` |
+| `gemini` | 全球综述 / 英文资料 / 通用检索 | Gemini `generateContent` + google_search grounding | `GEMINI_API_KEY` | `ai_summary.models.gemini.{fast,deep}` |
+
+> **doubao（火山方舟）的坑**：routing.yaml 里的 model 必须是 API model ID（带日期的小写格式，如 `doubao-seed-2-0-pro-260215` 或 `deepseek-v4-flash-260425`），不是 console 显示名（如「Doubao-Seed-2.0-pro」）。模型要先在方舟控制台「开通管理」开通。列已开通 model：`curl -s https://ark.cn-beijing.volces.com/api/v3/models -H "Authorization: Bearer $DOUBAO_API_KEY"`。
+>
+> **grok 的坑**：旧 Live Search（`search_parameters`）已于 2026-01-12 废弃（HTTP 410），现走 Agent Tools API（`/v1/responses`）。三家都走各自的 Responses/Grounding API，不是普通 chat completions。
+
+**model 分层**：`ai_summary.models.<backend>` 下分 `fast` / `deep` 两档。fast-search subagent 自动用 fast 档（便宜、量大），deep-search 用 deep 档（强、保质量）。tier 按派活的 subagent 名推断（名字含 `fast` → fast，其余 → deep），也可用 `search.py --tier fast|deep` / `--model <id>` 覆盖。
+
+> **为什么 model 进配置而不写在代码里**：各厂商 model 版本号更新很快（带日期后缀），写死在代码里每次都要改源码。放 `routing.yaml` 后，换 model 只改一行配置、不动代码；fast/deep 分层也只是配置表的两行。
+
+`defaults/routing.yaml` 当前各档默认值（可按需改）：
+
+| backend | fast 档（省钱 / 量大） | deep 档（保质量） |
+|---|---|---|
+| grok | `grok-4-fast` | `grok-4.3` |
+| doubao | `doubao-seed-2-0-mini-260428` | `doubao-seed-2-0-pro-260215` |
+| gemini | `gemini-2.5-flash-lite` | `gemini-3.5-flash` |
+
+**选型原则**：fast 档挑各家最轻量的（够拆查询词 + 消化网页即可），deep 档挑能力强的（要多轮判断、循证综合）。**不要**用 embedding / 纯基础档跑搜索——拆词和消化网页需要 tool calling + 一定推理力。
+
+豆包（火山方舟）三档参考（≤32K 输入，元 / 百万 token，2026-02 官方分段计费）：
+
+| 档 | model id | 输入 | 输出 | 第三方实测准确率 | 定位 |
+|---|---|---|---|---|---|
+| mini | `doubao-seed-2-0-mini-260428` | 0.2 | 2 | 71.8% | 最轻量、低时延高并发——**默认 fast 档** |
+| lite | `doubao-seed-2-0-lite-260428` | 0.6 | 3.6 | 73.9% | 均衡，性价比高 |
+| pro | `doubao-seed-2-0-pro-260215` | 3.2 | 16 | 76.5% | 旗舰，复杂推理——**默认 deep 档** |
+
+调用：
+
+```bash
+python3 search.py --query "..." --prefer ai                  # 按 routing.yaml selection_order 选
+python3 search.py --query "..." --prefer ai --ai-backend grok # 显式指定 backend
+python3 search.py --query "..." --prefer ai --tier deep       # 显式指定档位
+```
+
+**关闭整层**：`~/.config/search-crew/routing.yaml` 改 `ai_summary.enabled: false`，回到原有 jina / serper 路径。
+
+**加第四家**（如 Anthropic / OpenAI 加入综述能力）：
+
+1. `skills/search-toolkit/scripts/lib/backends/ai_<name>.py`：仿 `ai_grok.py` 写 `BACKEND` / `is_available()` / `search(query, *, max_results, model)`，调 `make_envelope` 装统一结构
+2. `lib/backends/__init__.py` 把新模块加进 `__all__`
+3. `scripts/search.py` 的 `AI_BACKEND_MODULES` dict 注册 + `_AI_BACKENDS`（`lib/_http.py`）加名字
+4. `defaults/routing.yaml` 把新名字加入 `ai_summary.selection_order` 并在 `ai_summary.models` 下加 fast/deep
+5. `defaults/pricing.yaml` 加 backend 段（暂可填 null 等后续补单价）
+6. `.env.example` 加新 API key 环境变量
+
 ### 1. 新增通用搜索 backend（如 Brave Search / Tavily）
 
 适合：你想接入一个新的"通用搜索引擎"类型 API。
