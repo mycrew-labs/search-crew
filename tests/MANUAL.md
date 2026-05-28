@@ -168,3 +168,37 @@ echo "site: fake.com" > ~/.config/search-crew/pending/routing/fake-rule.yaml
 - 含且只含**一行** `📊 本次估算 ~$X.XXX USD（...）`
 - **不含** `/tmp/search-crew/` 字符串
 - **不含** `usage-summary.md` 字符串（如果用户主动问明细，主 agent Read 文件后才呈现）
+
+## TC-WIDE-001 ：派发前确认 schema（×N 闸）
+
+**做**：`/search-wide 对比这 6 个开源向量数据库的性能/许可证/部署难度`
+
+**期**：wide-search 在派任何 worker **之前**先抛回「对象清单（6 个）+ 列（性能/许可证/部署难度）」请用户确认；用户放行后才并行派 worker。
+
+## TC-WIDE-002 ：一对象一 worker 并行 + 矩阵双格式
+
+**做**：放行上面的 schema，跑完看产物。
+
+**期**：
+
+- 每个对象一个独立 worker（fast-search 为主），同 turn 并行派出
+- 产 `report.md`（行=对象、列=维度的表格，每格附证据 anchor）+ `report.html`（可按列排序）+ `traces/`
+- report.md 与 report.html 语义等价（标「未获取」的格两边一致）
+
+## TC-WIDE-003 ：超 max_items 分批
+
+**做**：`/search-wide` 给一个超过 `wide_search.max_items`（默认 12）的对象数（如 20 个）。
+
+**期**：lead 分批处理或请用户收窄，**不**一次性铺超 max_items 个并行 worker。
+
+## TC-WIDE-004 ：单点 worker 失败标「未获取」
+
+**做**：跑一个其中某对象明显查不到数据的矩阵。
+
+**期**：矩阵照常产出，查不到的对应格标「未获取」，其余行正常，不因单点失败放弃整表。
+
+## TC-FAST-CMD-001 ：/search-fast 显式触发
+
+**做**：`/search-fast 当前最流行的开源向量数据库`
+
+**期**：主 agent 派一个 fast-search subagent 做单轮调研并回带证据的结论 + 一行 cost；语义自动触发的老路径（不打命令、通用查询语气）仍照常工作。

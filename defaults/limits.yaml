@@ -18,6 +18,12 @@ deep_search:
   max_rounds: 5          # 跨轮硬上限（OPEN-AGENT-002-A 方案 C）
   per_round_breadth: 4   # 每轮上限：每轮最多并行派几个 subagent（lead 按复杂度选 ≤ 它，简单题别铺满）
 
+wide_search:
+  # 每次最多并行派几个 worker（= 对照矩阵最多几个对象）。超过则 lead 分批或请用户收窄。
+  # 上限存在的理由：worker 是 Claude subagent（非 Manus 那种独立 VM），成本 ~15×，
+  # 一次铺太多既爆 token 又可能撞 Task 并发上限。
+  max_items: 12
+
 # 同 run 同 backend 的调用次数上限（防 subagent 反复追打同一源）
 # - 触发上限时 lib/_http.py 直接 raise BackendError(reason="call_cap_exceeded")，不真正发请求
 # - HTTP 429 / 5xx 在调用方主动重发时才增计数；request_json 内部不 retry
