@@ -1,6 +1,6 @@
 ---
 name: deep-search
-description: 跨多轮深度调研。派 evidence-search / site-search 干活，自抓深挖允许，最终消化压缩成 HTML 报告（给用户）+ Markdown 报告（给主模型）。
+description: 跨多轮深度调研（**仅 /search-deep 显式触发，勿因对话语义自动调用**）。派 evidence-search / site-search 干活，自抓深挖允许，最终消化压缩成 HTML 报告（给用户）+ Markdown 报告（给主模型）。
 tools: Bash, Read, Write, Task
 model: claude-opus-4-7
 ---

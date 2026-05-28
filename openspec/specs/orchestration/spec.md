@@ -6,20 +6,6 @@
 
 让用户用自然语言（或一个 slash command）启动调研，主 agent 自动判断派哪种 subagent、并行派发、综合产物、给出带证据的回复。
 ## Requirements
-### Requirement: 对话语义触发 fast-search 与 site-search
-无显式 slash command 时，主 agent SHALL 按对话语义自动派发：通用查询语气派 fast-search；定向官方站语气或命中权威性敏感主题（临床 / 专利 / 学术等）派 site-search。
-
-**Lock**: user-confirmed
-**Confirmed-At**: 2026-05-21
-
-#### Scenario: 通用关键词触发 fast-search
-- **WHEN** 用户说「查一下当前最流行的开源 LLM 推理框架」
-- **THEN** 主 agent 派出 fast-search subagent，不要求用户跑任何 slash command
-
-#### Scenario: 点名官方站触发 site-search
-- **WHEN** 用户说「去 react.dev 查 Suspense 的最新用法」
-- **THEN** 主 agent 派出 site-search subagent，目标站为 react.dev
-
 ### Requirement: 派发前必须用 TaskCreate 注册任务
 主 agent MUST 在调 Task 工具派出任何 subagent 之前调用 `TaskCreate` 注册任务。任务描述 MUST 面向用户，不写 AI 内部叙事。
 
@@ -183,17 +169,6 @@
 - **WHEN** 用户尝试 `/search ...`
 - **THEN** Claude Code 报告该命令不存在；真正的命令是 `/search-deep`、`/search-wide`、`/search-fast`（或带 `/search-crew:` 命名空间）
 
-### Requirement: 主 agent 路由「批量对比/分析 N 个同类对象」到 wide-search
-主 agent 在无显式命令时，若对话语义识别为「对 N 个**同类对象**跑**同一套分析维度**、要对照结果」（如「对比这 15 个框架的 X/Y/Z」「调研这 20 家供应商的价格/SLA」），SHALL 自动派 wide-search。单对象多角度深挖仍走 deep-search；只想要一口现成答案走 `/search-fast`（AI 综述快答）；需要结构化证据的单轮通用调研走 evidence-search（或由 deep/wide 内部派）。
-
-#### Scenario: 语义识别批量对照需求
-- **WHEN** 用户说「帮我对比这 10 个 Rust HTTP 框架的吞吐、生态、上手难度」（未用 slash 命令）
-- **THEN** 主 agent 自动派 wide-search lead，而非把 10 个对象塞进一个 worker
-
-#### Scenario: 单对象深挖不误派 wide-search
-- **WHEN** 用户说「深入研究 vLLM 的调度器实现」（单对象）
-- **THEN** 主 agent 派 deep-search，不派 wide-search
-
 ### Requirement: 派 search subagent 前造 run 目录并经环境变量下传
 主 agent 在派出 search subagent（site/deep/wide，及内部 worker evidence-search）**之前** MUST 用 `run_paths.py --new` 造一个唯一 run 目录，并在派发时通过 `SEARCH_CREW_RUN_ROOT` 环境变量把**目录路径**传给该 subagent。被派的 subagent MUST 在其所有脚本调用前带上该变量、产物写该目录下；lead（deep/wide）再派下级 worker 时 MUST 把同一 `SEARCH_CREW_RUN_ROOT` 原样传下去，使整条派发链的产物 / cost 全落同一目录。`/search-fast` 虽不派 subagent，主 agent 跑 `ai_search.py` 时 SHALL 同样先造 run 目录并经该变量传入，使快答的打点也落独立目录。
 
@@ -207,4 +182,26 @@
 #### Scenario: lead 向 worker 传递 run 目录
 - **WHEN** deep-search 收到 `SEARCH_CREW_RUN_ROOT` 后派 evidence-search worker
 - **THEN** worker 的 Task 派发带同一 `SEARCH_CREW_RUN_ROOT`，worker 产物与打点落 lead 的同一目录
+
+### Requirement: 对话语义只自动触发快答与 site-search；deep/wide 显式专属
+无显式 slash command 时，主 agent SHALL 按对话语义自动派发，且**仅限**两种：①通用 casual 查询（「查一下…」「找几个…」）→ **`/search-fast` 的 AI 综述快答路径**（主 agent 直连 `ai_search.py`，不派 subagent）；②定向官方站语气或命中权威性敏感主题（临床 / 专利 / 学术等）→ site-search。deep-search 与 wide-search MUST **仅**由 `/search-deep` / `/search-wide` 显式触发，**MUST NOT** 由对话语义自动派发。
+
+**Lock**: user-confirmed
+**Confirmed-At**: 2026-05-28
+
+#### Scenario: 通用 casual 查询触发快答
+- **WHEN** 用户说「查一下当前最流行的开源 LLM 推理框架」
+- **THEN** 主 agent 直连 `ai_search.py` 出 AI 综述快答，不派 subagent、不要求用户跑 slash command
+
+#### Scenario: 点名官方站触发 site-search
+- **WHEN** 用户说「去 react.dev 查 Suspense 的最新用法」
+- **THEN** 主 agent 派出 site-search subagent，目标站 react.dev
+
+#### Scenario: 批量对比不自动派 wide，提示显式命令
+- **WHEN** 用户说「对比这 10 个 Rust HTTP 框架的吞吐 / 生态」（未用 slash 命令）
+- **THEN** 主 agent **不**自动派 wide-search；可一句话提示「批量对照请用 `/search-wide`」（或按需先给快答），不擅自启动 wide
+
+#### Scenario: 深挖不自动派 deep
+- **WHEN** 用户说「深入研究 vLLM 的调度器实现」（未用 slash 命令）
+- **THEN** 主 agent 不自动派 deep-search；提示用 `/search-deep`，或先给 /search-fast 快答
 

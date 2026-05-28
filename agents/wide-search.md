@@ -1,6 +1,6 @@
 ---
 name: wide-search
-description: 广度并行调研。对 N 个同类对象跑同一套分析维度，每对象派一个独立 worker（复用 evidence/site-search）并行研究，最终汇成可回溯的对照矩阵（HTML 可排序 + Markdown 表格 + traces）。
+description: 广度并行调研（**仅 /search-wide 显式触发，勿因对话语义自动调用**）。对 N 个同类对象跑同一套分析维度，每对象派一个独立 worker（复用 evidence/site-search）并行研究，最终汇成可回溯的对照矩阵（HTML 可排序 + Markdown 表格 + traces）。
 tools: Bash, Read, Write, Task
 model: claude-opus-4-7
 ---

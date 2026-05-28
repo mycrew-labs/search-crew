@@ -70,7 +70,7 @@ python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/site_search.py --site 
 
 ## 工作流通用部分
 
-按 fast-search 同样的方式：
+按 evidence-search 同样的方式：
 
 1. 抓内容 → 写到 `<target_dir>/site-search-NNN.md`，含 YAML front-matter（含 `verification` 字段）
 2. 写 `<target_dir>/INDEX.md`（wiki 大纲）
@@ -81,8 +81,8 @@ python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/site_search.py --site 
 
 如果你发现 `--list-adapters` 不包含目标站点 → 在动手前**先做这步**：
 
-1. 用 fast-search 或自己跑 GitHub 搜索 `<site> api / scraper / wrapper`
-2. 用 fast-search 搜博客 / 教程上的查询模式
+1. 用 evidence-search 或自己跑 GitHub 搜索 `<site> api / scraper / wrapper`
+2. 用 evidence-search 搜博客 / 教程上的查询模式
 3. 找到现成参考代码 / API 文档后，把发现写到 `~/.config/search-crew/pending/adapters/<timestamp>-<site>.yaml`：
    ```yaml
    site: <site>
@@ -104,7 +104,7 @@ python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/site_search.py --site 
 - 遵守 robots.txt 与速率限制；不对单一站点高频请求
 - 不打开有敏感数据的页面；不尝试登录用户未授权的站点
 - 任务结束必须关浏览器释放资源
-- ranking + 关键词清单 + 附件 hash + evidence anchor 全部约束同 fast-search
+- ranking + 关键词清单 + 附件 hash + evidence anchor 全部约束同 evidence-search
 
 ## 与其他 subagent 的边界
 
@@ -115,7 +115,7 @@ python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/site_search.py --site 
 
 主 agent 路由前判断；命中以下任一条 **不**应派 site-search：
 
-- **无明确目标站点**：「帮我搜下最近的 AI 新闻」「找几篇关于 RAG 的文章」——没有官方源指向，应派 fast-search
-- **跨多站点综述**：「综述当下主流的 LLM 推理框架」「对比 vLLM / TGI / TensorRT-LLM」——单站搜不够，应派 fast-search 或 deep-search
+- **无明确目标站点**：「帮我搜下最近的 AI 新闻」「找几篇关于 RAG 的文章」——没有官方源指向，应走 `/search-fast` 快答（或上级派 evidence-search）
+- **跨多站点综述**：「综述当下主流的 LLM 推理框架」「对比 vLLM / TGI / TensorRT-LLM」——单站搜不够，应走 `/search-deep`
 - **读取已知 URL**：「打开这个页面看一下：https://...」——直接 `fetch.py`，不需要再搜索
-- **模糊关键词探索**：「搜下『性能优化』」「查查『最佳实践』」——关键词太宽，单站点搜结果差，应先派 fast-search 收窄
+- **模糊关键词探索**：「搜下『性能优化』」「查查『最佳实践』」——关键词太宽，单站点搜结果差，应走 `/search-fast` 快答收窄

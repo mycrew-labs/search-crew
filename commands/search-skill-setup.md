@@ -103,14 +103,18 @@ git config core.hooksPath .githooks
 ### 7. 测试建议
 
 ```
-快速测试：
-  对话直接说：「查一下当前最流行的开源 LLM 推理框架」（关键词触发 fast-search，无需 slash command）
+快答测试：
+  /search-fast 当前最流行的开源 LLM 推理框架（AI 综述快答，秒级）
+  或对话直接说「查一下…」也会自动走快答
 
 站内搜索测试（需要 Chrome）：
   对话说：「去 react.dev 查 Suspense 的最新用法」（关键词触发 site-search）
 
-深度调研测试：
+深度调研测试（显式）：
   /search-deep 深入调研开源 LLM 推理框架的现状和趋势
+
+批量对照测试（显式）：
+  /search-wide 对比这 5 个开源向量数据库的性能/许可证/部署难度
 
 查看历史使用：
   ! python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/usage.py --last 10
