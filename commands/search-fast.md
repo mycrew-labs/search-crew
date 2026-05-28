@@ -15,26 +15,36 @@ description: 显式发起一次通用快速调研。主 agent 派一个 fast-sea
 
 派之前调 `TaskCreate`，描述面向用户：「快速调研：{{args}}」。
 
-### 2. 派 fast-search
+### 2. 造本次派发的 run 目录
+
+派发前跑一次，拿到本次专属 run 目录路径（隔离本次 cost / call-cap / 产物）：
+
+```bash
+python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/run_paths.py --new
+```
+
+输出是一个目录路径（形如 `/tmp/search-crew/20260528T143000-a1b2c3`）。记下它，作 `<run_root>`。
+
+### 3. 派 fast-search
 
 用 Task 工具派 `fast-search`，参数：
 
 - `query`：原样传 `{{args}}`
 - `hint`：如能从用户措辞推断方向 / 来源偏好，加这一段
-- `target_dir` 不传，让 fast-search 自己用 session-id 决定
+- **在派发 prompt 里明确写**：「本次 `SEARCH_CREW_RUN_ROOT=<上一步的目录>`，你所有脚本调用前都带上它；产物写 `<该目录>/fast-search/`」——本次 cost / 产物全落这一个目录，不与会话里其它派发混。
 
 fast-search 是单轮 worker，只回 `(target_dir, 一句话摘要, run_root)`。
 
-### 3. 阅读产物
+### 4. 阅读产物
 
 Read `<target_dir>/INDEX.md`，按需跳进具体 `fast-search-NNN.md`。
 
-### 4. TaskUpdate 标 completed
+### 5. TaskUpdate 标 completed
 
-### 5. 最终回复用户
+### 6. 最终回复用户
 
 - **核心结论**：用你自己的话综合，**必须**附证据 URL / 关键原文 / 关键数字，不编造
-- **cost 一行**：调 `python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/finalize_usage.py <run_root> --subagent fast-search --one-line` 拿现成字符串拼到末尾。**MUST 带 `--subagent fast-search`**——run_root 是会话级共享目录，不切片会把整会话的累计调用都算进来（显示成上百次调用 / 一堆"触发上限"，吓人且不准）；切片后只显示本次 fast-search 的真实开销
+- **cost 一行**：调 `python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/finalize_usage.py <run_root> --one-line` 拿现成字符串拼到末尾。本次 run_root 是这次派发专属（run id 隔离），直接整 run 统计就是本次真实开销，无需再 `--subagent` 切片
 
 **不要**写出 `<run_root>` 路径或展开 cost 拆分。
 

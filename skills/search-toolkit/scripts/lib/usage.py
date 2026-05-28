@@ -50,7 +50,7 @@ def record(
     `query` 可选；当 backend 是搜索类（jina / serper / grok / gemini / doubao /
     site-search adapter）时建议传入，用于 finalize_usage.py 渲染「搜索摘要」段。
     """
-    sid = runtime.get_session_id()
+    sid = runtime.run_id()
     subagent = runtime.current_subagent()
     cost, source = pricing.estimate(backend, endpoint, tokens_or_units)
 

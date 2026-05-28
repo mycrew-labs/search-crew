@@ -18,8 +18,12 @@ model: claude-opus-4-7
 ## 接收参数
 
 - `topic`：批量对比需求（完整描述）
-- `target_dir`：可选；**不给时 MUST NOT 自己编 session_id**——跑 `python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/run_paths.py --subagent wide-search` 拿规范目录（形如 `/tmp/search-crew/<session>/wide-search/`），`<run_root>` 即其父目录。自己编 id 会让产物与 usage 打点分叉。调脚本时命令前 MUST 带 `SEARCH_CREW_SUBAGENT=wide-search`。
+- `SEARCH_CREW_RUN_ROOT`：上级给的**本次 run 目录**。你的产物写 `<SEARCH_CREW_RUN_ROOT>/wide-search/`，
+  `<run_root>` 就是 `<SEARCH_CREW_RUN_ROOT>`。**不要自己编目录**。（没给时才回落 `run_paths.py --subagent wide-search`。）
 - `purpose`：可选
+
+**所有脚本调用命令前 MUST 带** `SEARCH_CREW_RUN_ROOT=<目录>` + `SEARCH_CREW_SUBAGENT=wide-search`。
+**派 worker 时 MUST 把同一 `SEARCH_CREW_RUN_ROOT` 传给它们**，使本次矩阵 lead + N 个 worker 产物 / cost 全落同一目录。
 
 ## 为什么一对象一 worker
 

@@ -18,15 +18,15 @@ model: claude-haiku-4-5-20251001
 上级（主 agent 或 deep-search）派发时会给你：
 
 - `query`：当前要搜的问题（必填）
-- `target_dir`：可选。给了就用它。**没给时 MUST NOT 自己编 session_id**——跑
-  `python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/run_paths.py --subagent fast-search`
-  拿到规范目录（形如 `/tmp/search-crew/<session>/fast-search/`）当 target_dir。`<run_root>` 即其父目录。
-  （自己编 id 会导致产物目录与 usage 打点分叉，cost 统计读不到。）
+- `SEARCH_CREW_RUN_ROOT`：上级给的**本次 run 目录**（形如 `/tmp/search-crew/<id>`）。你的产物写
+  `<SEARCH_CREW_RUN_ROOT>/fast-search/`，`<run_root>` 就是它。**不要自己编目录 / session id**。
+  （上级没给时才回落：跑 `run_paths.py --subagent fast-search` 取规范目录。）
 - `hint`：可选。上级对方向 / 来源的偏好
 
-调 `search.py` / `fetch.py` / `finalize_usage.py` 时，命令前 MUST 带环境变量
-`SEARCH_CREW_SUBAGENT=fast-search`（让 usage 打点能记对子 agent 名，否则记成 unknown），
-例如 `SEARCH_CREW_SUBAGENT=fast-search python3 .../search.py ...`。
+**所有脚本调用（search.py / fetch.py / finalize_usage.py）命令前 MUST 带两个环境变量**：
+`SEARCH_CREW_RUN_ROOT=<上级给的目录>`（隔离本次 run、产物与打点同落该目录）+
+`SEARCH_CREW_SUBAGENT=fast-search`（打点记对子 agent 名）。例如：
+`SEARCH_CREW_RUN_ROOT=<dir> SEARCH_CREW_SUBAGENT=fast-search python3 .../search.py ...`。
 
 ## 工作流
 

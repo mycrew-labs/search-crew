@@ -18,8 +18,14 @@ model: claude-opus-4-7
 ## 接收参数
 
 - `topic`：调研主题（完整描述）
-- `target_dir`：可选；**不给时 MUST NOT 自己编 session_id**——跑 `python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/run_paths.py --subagent deep-search` 拿规范目录（形如 `/tmp/search-crew/<session>/deep-search/`），`<run_root>` 即其父目录。自己编 id 会让产物与 usage 打点分叉。调脚本时命令前 MUST 带 `SEARCH_CREW_SUBAGENT=deep-search`。
+- `SEARCH_CREW_RUN_ROOT`：上级给的**本次 run 目录**（形如 `/tmp/search-crew/<id>`）。你的产物写
+  `<SEARCH_CREW_RUN_ROOT>/deep-search/`，`<run_root>` 就是 `<SEARCH_CREW_RUN_ROOT>`。**不要自己编目录**。
+  （上级没给时才回落 `run_paths.py --subagent deep-search`。）
 - `purpose`：可选
+
+**所有脚本调用命令前 MUST 带** `SEARCH_CREW_RUN_ROOT=<目录>` + `SEARCH_CREW_SUBAGENT=deep-search`。
+**派 fast/site worker 时 MUST 把同一 `SEARCH_CREW_RUN_ROOT` 传给它们**（在 worker 的 Task prompt 里写明），
+使本次派发的 lead + 所有 worker 产物 / cost 全落同一目录。
 
 ## 总原则
 

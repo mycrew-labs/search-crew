@@ -20,7 +20,7 @@
 | 编号 | 不变量 |
 |---|---|
 | **I-CONFIG-001** | `~/.config/search-crew/` 是 runtime **唯一**配置真相；首次安装从 plugin `defaults/` 一次性拷贝；之后 plugin 升级**不动** active；用户对 active 拥有完全所有权 |
-| **I-DATA-001** | run 产物落在 `/tmp/search-crew/<session_id>/`；plugin **不写入**用户项目目录，除非用户明确同意复制 |
+| **I-DATA-001** | run 产物落在 `/tmp/search-crew/<run_id>/`（每次 `/search-*` 派发一个独立 run 目录，经 `SEARCH_CREW_RUN_ROOT` 沿派发链共享；缺省回落会话 id）；plugin **不写入**用户项目目录，除非用户明确同意复制 |
 | **I-EVIDENCE-001** | 主 agent / subagent 向用户呈现任何来自搜索的结论时，**必须**附带循证证据：URL 必填，关键原文 / 数字按需 |
 | **I-PARALLEL-001** | 同 turn 内派发多个 subagent 必须一次性发起；派发前必须先调 `TaskCreate` |
 | **I-CONTEXT-001** | 给用户展示的 cost 总览**只一行**进 context；明细 / 历史走落盘文件或 `!` shell 命令，不污染主 agent context |

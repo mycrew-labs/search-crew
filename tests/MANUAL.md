@@ -229,3 +229,20 @@ echo "site: fake.com" > ~/.config/search-crew/pending/routing/fake-rule.yaml
 **做**：依次触发首次 seed、一次 merge 补段、一次 promote 后，`cat ~/.config/search-crew/changelog.log`。
 
 **期**：三行分别含 `seed (init) ... trigger=first-install`、`merge <file> +<seg> trigger=setup`、`promote routing.yaml +topic:<name> trigger=user-approved`，每行带 UTC 时间戳，且文件只追加不重写。
+
+## TC-RUNID-001 ：一次派发 lead+worker 同 run 目录
+
+**做**：`/search-deep <题>`，跑完后 `ls /tmp/search-crew/<本次run目录>/`。
+
+**期**：
+
+- 主 agent 派发前跑过 `run_paths.py --new` 造目录，并在 deep-search 的派发 prompt 里带了 `SEARCH_CREW_RUN_ROOT=<该目录>`
+- deep-search 派 fast/site worker 时把同一 `SEARCH_CREW_RUN_ROOT` 传下去
+- 该目录下同时有 lead 的 deep-search/ 产物、worker 的 traces/ 产物、**一份** usage.jsonl（含 lead+worker 所有调用）
+- cost 一行 = 本次派发合计（含 worker），不与会话其它派发混
+
+## TC-RUNID-002 ：两次 /search-fast 互不累计
+
+**做**：连续跑两次 `/search-fast`，看各自 cost 行。
+
+**期**：两次落不同 run 目录，cost 各自独立（第二次不把第一次的调用累计进来）。

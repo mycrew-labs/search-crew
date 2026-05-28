@@ -22,7 +22,7 @@ DEFAULT_TIMEOUT = 30
 USER_AGENT = "search-crew/0.1 (+https://github.com/mycrew-labs/search-crew)"
 
 # 站点调用上限（同 run 同 backend 计数器）
-# - run_id 来源：SEARCH_CREW_RUN_ID env > runtime.get_session_id() > PID
+# - run_id 口径与 runtime.run_id() 一致：SEARCH_CREW_RUN_ID > CLAUDE_CODE_SESSION_ID > 兜底
 # - dict 跨进程不共享；每个 subagent 是独立 Python 进程，各自计数（设计明确接受）
 # - 默认：AI backend 1 次、非 AI backend 2 次；可在 ~/.config/search-crew/limits.yaml 覆盖
 _call_counter: dict[tuple[str, str], int] = {}
@@ -32,14 +32,11 @@ _DEFAULT_NON_AI_CAP = 2
 
 
 def _run_id() -> str:
-    """run_id 优先级：env > runtime.session_id > PID。"""
-    v = os.environ.get("SEARCH_CREW_RUN_ID", "").strip()
-    if v:
-        return v
+    """run_id：复用 runtime.run_id()（统一口径），异常兜底 PID。"""
     try:
         from . import runtime  # noqa: PLC0415  延迟导入
 
-        return runtime.get_session_id()
+        return runtime.run_id()
     except Exception:
         return f"pid-{os.getpid()}"
 
