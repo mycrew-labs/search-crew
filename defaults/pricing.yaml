@@ -34,6 +34,7 @@ zero_cost:
   - webfetch-fallback
   - websearch-fallback
   - chrome-devtools-mcp
+  - opencli-remote        # 用户自建 browser-host（B-006），无 per-call 计费
 
 # 未来扩展示例（按 backend / endpoint 分别填）
 # openai:

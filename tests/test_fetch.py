@@ -117,6 +117,35 @@ class TestFetchDispatch(unittest.TestCase):
         self.assertEqual(out.get("blocked"), "anti_bot")
 
 
+class TestRemoteHostFailover(unittest.TestCase):
+    """B-006 opencli-remote 中间层：默认关跳过；开启则在 jina 失败时兜底。"""
+
+    def test_disabled_returns_none(self):
+        with mock.patch.object(fetch.config, "load_limits", return_value={"web_page_fetch": {"remote_host": {"enabled": False}}}):
+            self.assertIsNone(fetch._try_remote_host("https://x.test"))
+
+    def test_enabled_calls_remote_and_returns_markdown(self):
+        cfg = {"web_page_fetch": {"remote_host": {
+            "enabled": True, "endpoint": "https://bh.test/fetch",
+            "auth_user": "u", "auth_pass": "p"}}}
+        captured = {}
+        def fake_text(_m, url, **kw):
+            captured["url"] = url; captured["headers"] = kw.get("headers", {})
+            return "# 远程抓到的正文\n够长的内容" * 5
+        with mock.patch.object(fetch.config, "load_limits", return_value=cfg):
+            with mock.patch.object(fetch._http, "request_text", side_effect=fake_text):
+                out = fetch._try_remote_host("https://x.test/a")
+        self.assertEqual(out["source"], "opencli-remote")
+        self.assertIn("远程抓到的正文", out["markdown"])
+        self.assertTrue(captured["url"].startswith("https://bh.test/fetch?url="))
+        self.assertTrue(captured["headers"]["Authorization"].startswith("Basic "))
+
+    def test_enabled_but_no_endpoint_returns_none(self):
+        cfg = {"web_page_fetch": {"remote_host": {"enabled": True, "endpoint": ""}}}
+        with mock.patch.object(fetch.config, "load_limits", return_value=cfg):
+            self.assertIsNone(fetch._try_remote_host("https://x.test"))
+
+
 class TestBatchFetch(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

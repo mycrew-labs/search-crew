@@ -23,7 +23,9 @@ blocked 两类：
 from __future__ import annotations
 
 import argparse
+import base64
 import sys
+import urllib.parse
 
 from lib import BackendError, emit, jina, config
 from lib import _http
@@ -89,6 +91,44 @@ def _blocked_payload(url: str, reason: str) -> dict:
     }
 
 
+def _try_remote_host(url: str) -> dict | None:
+    """第一层 failover：opencli 远程 browser-host（B-006）——用真实登录态浏览器抓。
+
+    受 `web_page_fetch.remote_host.enabled` 守卫，默认关 → 直接返回 None（无副作用，
+    行为同旧版）。启用且配了 endpoint 时，GET `<endpoint>?url=<url>`（带 basic auth），
+    期望返回正文文本。失败 / 仍被挡 → None，让上层落到 Claude WebFetch。
+    """
+    try:
+        limits = config.load_limits() or {}
+        rh = ((limits.get("web_page_fetch") or {}).get("remote_host")) or {}
+    except Exception:
+        return None
+    if not rh.get("enabled"):
+        return None
+    ep = (rh.get("endpoint") or "").strip()
+    if not ep:
+        return None
+
+    headers = {}
+    user, pwd = (rh.get("auth_user") or ""), (rh.get("auth_pass") or "")
+    if user or pwd:
+        token = base64.b64encode(f"{user}:{pwd}".encode("utf-8")).decode("ascii")
+        headers["Authorization"] = f"Basic {token}"
+    sep = "&" if "?" in ep else "?"
+    full = f"{ep}{sep}url={urllib.parse.quote(url, safe='')}"
+    try:
+        text = _http.request_text(
+            "GET", full, backend="opencli-remote", endpoint="fetch",
+            headers=headers, timeout=90, cap_exempt=True,
+        )
+    except BackendError as e:
+        print(f"[fetch] opencli-remote 失败：{e}，落 WebFetch", file=sys.stderr)
+        return None
+    if not text or _looks_blocked(text):
+        return None
+    return {"source": "opencli-remote", "url": url, "markdown": text, "fallback": None}
+
+
 def _fetch_one(url: str) -> dict:
     """抓单个 URL，返回结果 dict（不打印）。供单抓与并发 batch 共用。"""
     # 1. 直连 GET（豁免站点调用上限），拿 body + Content-Type
@@ -98,31 +138,32 @@ def _fetch_one(url: str) -> dict:
         )
     except BackendError as e:
         if e.http_status in (401, 403):
+            # 登录/付费墙：先试远程登录态浏览器（B-006），拿不到才判 needs_auth
             print(f"[fetch] 直连 {e.http_status}，判 needs_auth：{url}", file=sys.stderr)
-            return _blocked_payload(url, "needs_auth")
+            return _try_remote_host(url) or _blocked_payload(url, "needs_auth")
         print(f"[fetch] 直连失败：{e}", file=sys.stderr)
-        return {"source": None, "url": url, "markdown": None, "fallback": "WEBFETCH_FALLBACK"}
+        return _try_remote_host(url) or {"source": None, "url": url, "markdown": None, "fallback": "WEBFETCH_FALLBACK"}
 
     # 2. 反爬识别（直连 body）
     if _looks_blocked(body):
         print(f"[fetch] 直连命中反爬墙：{url}", file=sys.stderr)
-        return _blocked_payload(url, "anti_bot")
+        return _try_remote_host(url) or _blocked_payload(url, "anti_bot")
 
     # 3. raw → 原文直返
     if _is_raw_content_type(ctype, body):
         return {"source": "raw", "url": url, "markdown": body, "fallback": None}
 
-    # 4. HTML → 二次送 Jina Reader 渲染（更干净、处理 JS）
+    # 4. HTML 渲染链：jina-reader → opencli-remote（B-006 预留）→ Claude WebFetch
     try:
         data = jina.fetch(url)
     except BackendError as e:
         print(f"[fetch] jina-reader 失败：{e}", file=sys.stderr)
-        return {"source": None, "url": url, "markdown": None, "fallback": "WEBFETCH_FALLBACK"}
+        return _try_remote_host(url) or {"source": None, "url": url, "markdown": None, "fallback": "WEBFETCH_FALLBACK"}
 
     # 5. Jina 渲染结果也查反爬（微信经 Jina 同样是验证页）
     if _looks_blocked(data.get("markdown", "") or ""):
         print(f"[fetch] jina-reader 命中反爬墙：{url}", file=sys.stderr)
-        return _blocked_payload(url, "anti_bot")
+        return _try_remote_host(url) or _blocked_payload(url, "anti_bot")
 
     return {"source": "jina-reader", **data, "fallback": None}
 
