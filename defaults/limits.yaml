@@ -16,7 +16,7 @@ site_search:
 
 deep_search:
   max_rounds: 5          # 跨轮硬上限（OPEN-AGENT-002-A 方案 C）
-  per_round_breadth: 4   # 每轮并行派出多少个 subagent
+  per_round_breadth: 4   # 每轮上限：每轮最多并行派几个 subagent（lead 按复杂度选 ≤ 它，简单题别铺满）
 
 # 同 run 同 backend 的调用次数上限（防 subagent 反复追打同一源）
 # - 触发上限时 lib/_http.py 直接 raise BackendError(reason="call_cap_exceeded")，不真正发请求

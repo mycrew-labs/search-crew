@@ -36,10 +36,22 @@ model: claude-opus-4-7
 
 ### 第一轮：规划
 
-1. 把 topic 拆成研究计划：角度 + 子任务清单 + 每子任务的完成判据
-2. 写 `<run_root>/deep-search/plan.md`：
+1. **先评估复杂度，再据此决定投入**：query 越复杂，投入越大；简单题别铺满。按下表（参考 Anthropic 缩放规则，映射到本插件的 caps）在 `per_round_breadth`、`max_rounds` 上限内选用 worker 数与轮数：
+
+   | query 类型 | worker 数（≤ `per_round_breadth`） | 轮数（≤ `max_rounds`） |
+   |---|---|---|
+   | 误入的简单事实 / 单点（本该 fast / site 直接干） | 1 | 1，尽快收 |
+   | 单一主题中等深度 | 2-3 | 1-2 |
+   | 横向对比 / 多角度 | 3-4 | 2-3 |
+   | 复杂跨域 / 需循证链 | 铺满 breadth | 至 max_rounds |
+
+2. 把 topic 拆成研究计划：角度 + 子任务清单 + 每子任务的完成判据
+3. 写 `<run_root>/deep-search/plan.md`，顶部 MUST 含「本次假设范围」声明与「复杂度评估 + 投入决策」一行：
    ```markdown
    # Plan · <topic>
+
+   > 本次假设范围 / 角度：本次按 <X 范围 / 角度> 调研，如需调整请说。
+   > 复杂度：中等 / 本轮 3 个 worker / 预计 2 轮（worker 数 ≤ per_round_breadth、轮数 ≤ max_rounds）
 
    ## 子任务
 
@@ -47,8 +59,23 @@ model: claude-opus-4-7
    - [ ] T2: 横向对比 A vs B                  完成判据: 性能 / 价格 / 易用三维有数据
    - [ ] T3: 找社区典型踩坑案例                完成判据: 至少 3 个最近 12 个月内案例
    ```
-3. **派发前调 TaskCreate** 建任务清单，描述面向用户（如「调研 X 的官方说法」），不写「派 site-search worker」
-4. 同 turn 并行派发每个子任务对应的 fast-search 或 site-search subagent
+   - 「本次假设范围」让调研边界始终可见，便于上级或用户中途纠偏（开跑前的主动澄清由主 agent 在派发前做）
+   - 「复杂度评估」写进 plan.md 是为了让投入决策可见、可被质疑，也是 traces 的一部分
+4. **派发前调 TaskCreate** 建任务清单，描述面向用户（如「调研 X 的官方说法」），不写「派 site-search worker」
+5. 同 turn 并行派发每个子任务对应的 fast-search 或 site-search subagent。派每个 worker 的 Task prompt MUST 含「任务契约四要素」（见下）
+
+### 派 worker 的任务契约四要素
+
+派每个 fast/site-search 时，Task prompt MUST 含以下四要素，缺任一会导致 worker drift：
+
+```
+目标：这个 worker 要回答的具体子问题（对应 plan.md 里某条子任务）
+输出格式：期望的产物形态（如 fast-search-NNN.md + INDEX，按既有产物约定）
+工具 / 源指引：起点路由（该走 fast 还是 site、哪些官方源），含 routing 硬规则提醒
+边界：不做什么（不越界到别的子任务、不多轮、命中权威主题回信号；含 target_dir）
+```
+
+「派 subagent 必须传 target_dir」的 locked 约束不变，target_dir 属「边界」的一部分。
 
 ### 第 N 轮（N ≥ 2）
 
@@ -58,8 +85,15 @@ model: claude-opus-4-7
     - 内容充足
     - 已通过循证复核
     - 新抓内容质量不再提升
-4. 写 `<run_root>/deep-search/round-N.md`：本轮派发了什么、收回什么、自评结果
-5. 决定是否继续：
+4. 写 `<run_root>/deep-search/round-N.md`：本轮派发了什么、收回什么、自评结果，并 MUST 加一段显式 **gap 评估**：
+   ```markdown
+   ## gap 评估
+   已覆盖：...
+   还缺：...
+   下一轮补哪个角度（或：已够，进入综合）
+   ```
+   该评估 MUST 作为「继续派下一轮 vs 收敛进入综合」的依据——从「子任务 done / not-done」升级到「主动找缺口 + 决定下一步」
+5. 决定是否继续（与上面 gap 评估的结论一致）：
     - 所有子任务 done → 进入综合阶段
     - 已达 `max_rounds`（默认 5）→ 进入综合阶段（产物中标注未完成项）
     - 否则派下一轮（依然同 turn 并行）
@@ -73,6 +107,8 @@ model: claude-opus-4-7
 - 结构对应 plan.md 子任务
 - 每段结论后附证据 anchor：`见 [fast-search-003 §<slug>](traces/fast-search-<sid>/fast-search-003.md#<slug>)`
 - 关键数字 / 原文摘录必须保留（P-EVIDENCE-001）
+- **显式找矛盾**：跨多源得到的结论若存在冲突 / 分歧，MUST 单独标出（如「⚠️ 分歧：源 A=X，源 B=Y」），MUST NOT 偷偷只选一个而不提分歧
+- 每条关键结论 MUST 标注循证状态：已回官方源复核 / 未复核存疑（沿用循证四步第 4 步）
 - 「来自 pending 未确认」/「未在官方源验证」必须显式标注
 - 末尾用 `python3 .../finalize_usage.py <run_root>` 接管 usage summary 生成
 
@@ -80,7 +116,7 @@ model: claude-opus-4-7
 
 - 给用户直观看的可视化形态：卡片、表格、折叠区块、彩色高亮、内嵌 svg / mermaid 等均可
 - 引用循证：HTML 中链接必须可点击，外部 URL 直接 `<a href>`，本地 markdown 用相对路径 `<a href="../fast-search/fast-search-003.md#<slug>">`
-- 与 `report.md` 语义等价：**不允许 HTML 多结论 / 少结论**
+- 与 `report.md` 语义等价：**不允许 HTML 多结论 / 少结论**（report.md 标出的源间分歧与循证状态，HTML 同样要呈现）
 - 形态自由，但要服务"用户读起来直观"
 
 #### `<run_root>/deep-search/INDEX.md`
@@ -104,7 +140,11 @@ model: claude-opus-4-7
 
 ## 关键约束（不要违反）
 
-- 第一轮必产 `plan.md`
+- 第一轮必产 `plan.md`，顶部含「本次假设范围」声明 + 「复杂度评估 + 投入决策」一行
+- 按复杂度缩放投入：worker 数 ≤ `per_round_breadth`（每轮上限）、轮数 ≤ `max_rounds`；简单题别铺满
+- 派 worker 的 Task prompt 必含「任务契约四要素」（目标 / 输出格式 / 工具源指引 / 边界）
+- 每轮 `round-N.md` 必含「gap 评估」（已覆盖 / 还缺 / 下一轮补哪个角度或进入综合），并作为继续 vs 收敛的依据
+- 综合阶段必须显式标出源间分歧、每条关键结论标循证状态
 - `max_rounds`（默认 5）是硬上限，禁止无限循环
 - 主交付物 = `report.html` + `report.md`，缺一不可，两版语义等价
 - 派 subagent 时必须传 traces 子目录路径

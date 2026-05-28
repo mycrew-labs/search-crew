@@ -118,6 +118,47 @@ echo "site: fake.com" > ~/.config/search-crew/pending/routing/fake-rule.yaml
 
 **期**：每段结论后有 URL（结论性强的段含原文摘录 / 数字）。少 URL 视为缺陷。
 
+## TC-DR-001 ：deep-search 按复杂度缩放 + 假设范围
+
+**做**：跑一个简单 topic（如 `/search-deep 调研 React useTransition 用法`）和一个复杂跨域 topic，分别看 `<run_root>/deep-search/plan.md`。
+
+**期**：
+
+- plan.md 顶部含「本次假设范围 / 角度」声明
+- plan.md 顶部含「复杂度评估 + 投入决策」一行（复杂度 / 本轮 worker 数 / 预计轮数）
+- 简单 topic 用 1-3 个 worker、1-2 轮即收（不铺满 `per_round_breadth`、不跑到 `max_rounds`）
+- 实际 worker 数 ≤ `per_round_breadth`、轮数 ≤ `max_rounds`
+
+## TC-DR-002 ：派 worker 任务契约四要素
+
+**做**：跑 `/search-deep`，看 deep-search 派 fast/site-search 的 Task prompt（traces 或 task list）。
+
+**期**：每个派发 prompt 含明确的 目标 / 输出格式 / 工具源指引（含 routing 硬规则）/ 边界 四部分，缺任一视为缺陷。
+
+## TC-DR-003 ：综合阶段标分歧 + 循证状态
+
+**做**：跑一个易出多源冲突的对比 topic，看 `report.md` / `report.html`。
+
+**期**：
+
+- 多源对同一指标给出冲突数据时，报告显式呈现「⚠️ 分歧：源 A=X，源 B=Y」，而非只取其一
+- 每条来自非官方源的关键结论标注「未在官方源验证」或「已复核」
+
+## TC-DR-004 ：每轮 gap 评估
+
+**做**：跑一个需多轮的 topic，看各 `round-N.md`。
+
+**期**：每个 round-N.md 含「已覆盖 / 还缺 / 下一轮补哪个角度（或进入综合）」段，且下一步决策（继续 vs 收敛）与该评估一致。
+
+## TC-DR-005 ：歧义 topic 主 agent 先问
+
+**做**：
+
+1. `/search-deep 调研 transformer`（范围过宽 / 歧义）
+2. `/search-deep 对比 vLLM 与 TensorRT-LLM 的吞吐与显存`（已清晰）
+
+**期**：1 主 agent 派发前先发一句话澄清（含合理默认，非阻塞）；2 主 agent 不额外提问，直接派 deep-search。
+
 ## TC-CONTEXT-001 ：context 卫生
 
 **做**：跑 `/search-deep` 完成后，grep 主 agent 最终回复内容。
