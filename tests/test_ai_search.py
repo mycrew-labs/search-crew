@@ -35,6 +35,8 @@ class TestAiSearch(unittest.TestCase):
         pick.assert_called_with("doubao")  # 中文 → 显式传 doubao
         self.assertEqual(out["backend"], "doubao")
         self.assertEqual(out["summary"], "综述")
+        self.assertEqual(out["calls"], 1)
+        self.assertIn("1 次调用 · doubao", out["cost_line"])  # 自报 cost 一行（不走 finalize_usage）
 
     def test_english_uses_default_order(self):
         with mock.patch.object(ai_search.ai_summary, "pick_backend", return_value="grok") as pick:

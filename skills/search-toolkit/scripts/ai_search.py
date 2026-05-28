@@ -20,8 +20,18 @@ import re
 import sys
 
 from lib import BackendError, emit, ai_summary
+from lib import pricing
 
 _CJK_RE = re.compile(r"[一-鿿]")
+# AI backend → 其打点 endpoint（用于 cost 估算）
+_ENDPOINT = {"grok": "responses", "doubao": "responses", "gemini": "generateContent"}
+
+
+def _cost_line(backend: str) -> str:
+    """本次快答一行 cost——/search-fast 不走 finalize_usage，由这里自报。"""
+    cost, _src = pricing.estimate(backend, _ENDPOINT.get(backend, "responses"), 1)
+    amount = cost if isinstance(cost, (int, float)) else 0.0
+    return f"📊 本次估算 ~${amount:.4f} USD（1 次调用 · {backend}）"
 
 
 def _lang_preferred_backend(query: str) -> str | None:
@@ -47,7 +57,8 @@ def main() -> int:
     if not picked:
         # 全缺 key / ai_summary 未启用 → 让主 agent 回落普通搜索
         print("[ai_search] 无可用 AI 综述源（key 缺或 ai_summary 未启用），回落普通搜索", file=sys.stderr)
-        emit({"backend": None, "summary": None, "citations": [], "fallback": "WEBSEARCH_FALLBACK"})
+        emit({"backend": None, "summary": None, "citations": [], "fallback": "WEBSEARCH_FALLBACK",
+              "calls": 0, "cost_line": None})
         return 0
 
     model = ai_summary.resolve_model(picked, "fast", args.model)
@@ -55,13 +66,18 @@ def main() -> int:
         out = ai_summary.run_ai(picked, args.query, args.max_results, model)
     except BackendError as e:
         print(f"[ai_search] AI 源 {picked} 调用失败：{e}，回落普通搜索", file=sys.stderr)
-        emit({"backend": None, "summary": None, "citations": [], "fallback": "WEBSEARCH_FALLBACK"})
+        emit({"backend": None, "summary": None, "citations": [], "fallback": "WEBSEARCH_FALLBACK",
+              "calls": 0, "cost_line": None})
         return 0
 
+    # /search-fast 不走 run 目录 + finalize_usage：cost 一行由本脚本自报；
+    # 调用已经过 _http 进永久统一日志 calls.jsonl（usage.py 查历史可见）。
     emit({
         "backend": out["backend"],
         "summary": out.get("summary", ""),
         "citations": out.get("citations", []),
+        "calls": 1,
+        "cost_line": _cost_line(out["backend"]),
         "fallback": None,
     })
     return 0
