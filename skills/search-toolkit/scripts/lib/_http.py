@@ -59,7 +59,7 @@ def _check_and_increment_cap(backend: str, query: str | None = None, cap_exempt:
     """达到上限直接 raise；未达上限自增。
 
     `cap_exempt=True`：读取 / 抓取类操作（jina-reader、fetch.py 直连探测）豁免上限——
-    上限只约束搜索源，读取已知 URL 是正常多次操作（fast-search 抓 top N、deep-search 多页深挖）。
+    上限只约束搜索源，读取已知 URL 是正常多次操作（evidence-search 抓 top N、deep-search 多页深挖）。
     """
     if cap_exempt:
         return

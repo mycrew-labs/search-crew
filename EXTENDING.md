@@ -17,7 +17,7 @@ model 走 routing.yaml（按 fast/deep 分层，不在代码 hardcode）。
 >
 > **grok 的坑**：旧 Live Search（`search_parameters`）已于 2026-01-12 废弃（HTTP 410），现走 Agent Tools API（`/v1/responses`）。三家都走各自的 Responses/Grounding API，不是普通 chat completions。
 
-**model 分层**：`ai_summary.models.<backend>` 下分 `fast` / `deep` 两档。fast-search subagent 自动用 fast 档（便宜、量大），deep-search 用 deep 档（强、保质量）。tier 按派活的 subagent 名推断（名字含 `fast` → fast，其余 → deep），也可用 `search.py --tier fast|deep` / `--model <id>` 覆盖。
+**model 分层**：`ai_summary.models.<backend>` 下分 `fast` / `deep` 两档。`/search-fast`（ai_search 快答）用 fast 档（便宜、量大），deep-search 用 deep 档（强、保质量）。tier 按调用方推断（subagent 名含 `fast` 或 ai_search → fast，其余 → deep），也可用 `search.py --tier fast|deep` / `--model <id>` 覆盖。
 
 > **为什么 model 进配置而不写在代码里**：各厂商 model 版本号更新很快（带日期后缀），写死在代码里每次都要改源码。放 `routing.yaml` 后，换 model 只改一行配置、不动代码；fast/deep 分层也只是配置表的两行。
 

@@ -22,7 +22,7 @@ last_updated: "2026-05-22"
 # - 硬规则 topics（hard_rule: true）优先级始终高于 AI 综述层
 #
 # models：每个 backend 按 subagent 分层选 model（不在代码 hardcode，全在这里）。
-# - fast-search 用 fast 档（便宜、量大）；deep-search 用 deep 档（强、保质量）
+# - /search-fast(ai_search) 用 fast 档（便宜、量大）；deep-search 用 deep 档（强、保质量）
 # - model 填各厂商的【API model ID】：
 #   - grok（xAI）：grok-4-fast / grok-4.3 等，见 https://console.x.ai
 #   - doubao（火山方舟）：带日期的小写 ID，如 doubao-seed-2-0-lite-260428；

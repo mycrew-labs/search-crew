@@ -17,7 +17,7 @@
 - **THEN** TaskCreate 已先调用一次，注册的 task 描述对用户可读
 
 #### Scenario: 同 turn 派多个 subagent
-- **WHEN** deep-search 一轮内派 3 个 fast-search
+- **WHEN** deep-search 一轮内派 3 个 evidence-search
 - **THEN** 这 3 个 Task 工具调用在同一 message 内一次性发起（并行），不是串行
 
 ### Requirement: 派 subagent 时启动协作邀请
@@ -56,10 +56,10 @@
 
 #### Scenario: 命中临床主题必须先到 clinicaltrials.gov
 - **WHEN** 用户查询涉及临床试验
-- **THEN** 主 agent 不允许直接派 fast-search 做通用搜索；MUST 先派 site-search 到 clinicaltrials.gov 和 pubmed.ncbi.nlm.nih.gov
+- **THEN** 主 agent 不允许直接派 evidence-search 做通用搜索；MUST 先派 site-search 到 clinicaltrials.gov 和 pubmed.ncbi.nlm.nih.gov
 
 #### Scenario: 通用源得到关键结论后回官方复核
-- **WHEN** fast-search 通过博客得到一个关键技术结论
+- **WHEN** evidence-search 通过博客得到一个关键技术结论
 - **THEN** 主 agent / deep-search 在使用该结论前 MUST 派一个 site-search 到对应官方文档站复核
 
 #### Scenario: 官方源无记录则显式标注
@@ -73,8 +73,8 @@
 **Confirmed-At**: 2026-05-21
 
 #### Scenario: 零 key 时搜索 fallback
-- **WHEN** 环境变量 `JINA_API_KEY` 与 `SERPER_API_KEY` 均未设置，主 agent 派 fast-search
-- **THEN** `search.py` stdout 输出 `"fallback": "WEBSEARCH_FALLBACK"`，fast-search 接管后改用 Claude Code 内置 WebSearch 完成本次任务
+- **WHEN** 环境变量 `JINA_API_KEY` 与 `SERPER_API_KEY` 均未设置，主 agent 派 evidence-search
+- **THEN** `search.py` stdout 输出 `"fallback": "WEBSEARCH_FALLBACK"`，evidence-search 接管后改用 Claude Code 内置 WebSearch 完成本次任务
 
 ### Requirement: 主 agent 最终回复 cost 总览不超过一行
 主 agent 在最终回复结尾 MUST 追加且仅追加**一行** cost 总览（形如 `📊 本次估算 ~$X.XXX USD（N 次调用）`）。回复 MUST NOT 出现 `/tmp/search-crew/` 路径字符串或详细 cost 拆分。用户追问明细时主 agent SHALL Read `<run_root>/usage-summary.md` 后呈现拆分。

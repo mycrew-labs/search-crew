@@ -39,7 +39,7 @@ python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/run_paths.py --new
 
 - `topic`：原样传 `{{args}}`
 - `purpose`：如果你能从用户措辞推断更具体的意图，加这一段
-- **在派发 prompt 里明确写**：「本次 `SEARCH_CREW_RUN_ROOT=<上一步的目录>`，你所有脚本调用前带上它，**且派 fast/site worker 时把这个目录原样传下去**」——lead + 所有 worker 的产物 / cost 全落这一个目录（deep 也准、好查阅）。
+- **在派发 prompt 里明确写**：「本次 `SEARCH_CREW_RUN_ROOT=<上一步的目录>`，你所有脚本调用前带上它，**且派 evidence/site worker 时把这个目录原样传下去**」——lead + 所有 worker 的产物 / cost 全落这一个目录（deep 也准、好查阅）。
 
 ### 5. 等返回
 

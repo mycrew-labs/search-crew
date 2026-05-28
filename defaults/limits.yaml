@@ -1,6 +1,6 @@
 # Search Crew · 各 subagent 上限（用户态 active）
 #
-# 这些是硬上限的兜底值，避免 deep-search 无限循环 / fast-search 抓太多。
+# 这些是硬上限的兜底值，避免 deep-search 无限循环 / evidence-search 抓太多。
 # 想加大 / 减小可以直接改。
 
 last_updated: "2026-05-21"

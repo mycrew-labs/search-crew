@@ -45,7 +45,7 @@ plugin 内置代码型适配器
 按 USER_DESIGN P-AGENT-003 的强建议：
 
 1. 先去 GitHub 搜对应站点的现成抓取实现
-2. 同时用 fast-search 搜博客 / 教程上的查询模式
+2. 同时用 evidence-search 搜博客 / 教程上的查询模式
 3. 找到参考实现后改写 / 移植
 4. 没有现成参考时再自己猜接口
 

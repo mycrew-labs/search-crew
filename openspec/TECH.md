@@ -16,7 +16,7 @@
 
 ## T-ARCH-002 ：Subagent 模型分层
 
-- `fast-search` → 轻量级模型（默认 `claude-haiku-4-5-20251001`）
+- `evidence-search` → 轻量级模型（默认 `claude-haiku-4-5-20251001`）
 - `site-search` → 中等模型（默认 `claude-sonnet-4-6`）
 - `deep-search` → 旗舰模型（默认 `claude-opus-4-7`）
 

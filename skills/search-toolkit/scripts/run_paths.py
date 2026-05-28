@@ -4,8 +4,8 @@
 用法：
     run_paths.py --new            # 造一个新的 per-dispatch run 目录并打印其路径（派发方派 subagent 前用）
     run_paths.py                  # 打印当前 run_root（按 SEARCH_CREW_RUN_ROOT > RUN_ID > 会话 id）
-    run_paths.py --subagent fast-search
-                                  # 打印 <run_root>/fast-search/
+    run_paths.py --subagent evidence-search
+                                  # 打印 <run_root>/evidence-search/
 
 派发方（主 agent / lead）每次 `/search-*` 跑 `--new` 造目录，把**目录路径**经
 `SEARCH_CREW_RUN_ROOT` 传给 subagent 并沿派发链下传——一次派发的 lead + 所有 worker

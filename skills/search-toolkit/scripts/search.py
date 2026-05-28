@@ -12,7 +12,7 @@ CLI:
 - 无可用 backend → { "results": [], "fallback": "WEBSEARCH_FALLBACK" }
 
 AI 综述 backend 的 model 不在代码 hardcode：从 routing.yaml ai_summary.models.<backend>
-按 tier（fast-search→fast / 其他→deep）解析；可用 --model 显式覆盖。
+按 tier（subagent 名含 fast 或 ai_search → fast 档；其余 → deep）解析；可用 --model 显式覆盖。
 """
 
 from __future__ import annotations

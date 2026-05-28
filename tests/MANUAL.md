@@ -10,11 +10,11 @@
 2. 在另一个对话输入 `/search-deep 深入调研开源 LLM 推理框架现状`
 3. 尝试 `/search ...`（应不存在）；尝试 `--site ...`（应不被识别）
 
-**期**：1 自动派 fast-search；2 派 deep-search；3 两者都"未识别"。
+**期**：1 casual 查询自动走 /search-fast 快答（直连 ai_search，不派 subagent）；2 派 deep-search；3 两者都"未识别"。
 
 ## TC-AGENT-001 ：三个 subagent 都做 ranking + 摘要
 
-**做**：分别触发 fast / site / deep，看产物。
+**做**：分别触发 evidence-search（经 deep 内部派）/ site / deep，看产物。
 
 **期**：每个 subagent 的 `<run_root>/<name>/INDEX.md` 都含 ranking + 关键词清单。
 
@@ -26,7 +26,7 @@
 
 - 有 `plan.md`（第一轮规划）
 - 有 `round-1.md` / `round-2.md` ...
-- 有 `traces/fast-search-<sid>/` 或 `traces/site-search-<sid>/`
+- 有 `traces/evidence-search-<sid>/` 或 `traces/site-search-<sid>/`
 - 最终有 `report.html` + `report.md`
 - 不超过 5 轮（`max_rounds`）
 
@@ -47,7 +47,7 @@
 **做**：
 
 - 关键词命中"学术论文"主题，模拟 arxiv 不通时看是否标"未在官方源验证"
-- fast-search 派出去的结果，主 agent 在最终回复前应派 site-search 复核（看 TaskList）
+- evidence-search 派出去的结果，主 agent 在最终回复前应派 site-search 复核（看 TaskList）
 
 **期**：未通过复核的内容在最终回复显式标注。
 
@@ -71,7 +71,7 @@ python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/search.py --query test
 **期**：
 
 - 所有产物在同一 `<run_root>` 下
-- deep-search 派出去的 fast/site 子产物在 `<run_root>/deep-search/traces/` 下，**不**在独立的 session-id 目录
+- deep-search 派出去的 evidence/site 子产物在 `<run_root>/deep-search/traces/` 下，**不**在独立的 session-id 目录
 - 主 agent 给用户的回复**不含** `/tmp/search-crew/` 字符串
 
 ## TC-MCP-001 ：chrome-devtools-mcp 拉起
@@ -131,7 +131,7 @@ echo "site: fake.com" > ~/.config/search-crew/pending/routing/fake-rule.yaml
 
 ## TC-DR-002 ：派 worker 任务契约四要素
 
-**做**：跑 `/search-deep`，看 deep-search 派 fast/site-search 的 Task prompt（traces 或 task list）。
+**做**：跑 `/search-deep`，看 deep-search 派 evidence/site-search 的 Task prompt（traces 或 task list）。
 
 **期**：每个派发 prompt 含明确的 目标 / 输出格式 / 工具源指引（含 routing 硬规则）/ 边界 四部分，缺任一视为缺陷。
 
@@ -181,7 +181,7 @@ echo "site: fake.com" > ~/.config/search-crew/pending/routing/fake-rule.yaml
 
 **期**：
 
-- 每个对象一个独立 worker（fast-search 为主），同 turn 并行派出
+- 每个对象一个独立 worker（evidence-search 为主），同 turn 并行派出
 - 产 `report.md`（行=对象、列=维度的表格，每格附证据 anchor）+ `report.html`（可按列排序）+ `traces/`
 - report.md 与 report.html 语义等价（标「未获取」的格两边一致）
 
@@ -201,7 +201,7 @@ echo "site: fake.com" > ~/.config/search-crew/pending/routing/fake-rule.yaml
 
 **做**：`/search-fast 当前最流行的开源向量数据库`
 
-**期**：主 agent 派一个 fast-search subagent 做单轮调研并回带证据的结论 + 一行 cost；语义自动触发的老路径（不打命令、通用查询语气）仍照常工作。
+**期**：主 agent **直连 ai_search.py**（不派 subagent）出 AI 综述 + 引用 + 一行 cost；casual「查一下…」也自动走此快答路径。
 
 ## TC-CFG-MUT-001 ：setup 检测缺段 → 问 → AI 自己 merge
 
@@ -237,7 +237,7 @@ echo "site: fake.com" > ~/.config/search-crew/pending/routing/fake-rule.yaml
 **期**：
 
 - 主 agent 派发前跑过 `run_paths.py --new` 造目录，并在 deep-search 的派发 prompt 里带了 `SEARCH_CREW_RUN_ROOT=<该目录>`
-- deep-search 派 fast/site worker 时把同一 `SEARCH_CREW_RUN_ROOT` 传下去
+- deep-search 派 evidence/site worker 时把同一 `SEARCH_CREW_RUN_ROOT` 传下去
 - 该目录下同时有 lead 的 deep-search/ 产物、worker 的 traces/ 产物、**一份** usage.jsonl（含 lead+worker 所有调用）
 - cost 一行 = 本次派发合计（含 worker），不与会话其它派发混
 

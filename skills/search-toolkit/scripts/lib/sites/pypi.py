@@ -1,7 +1,7 @@
 """PyPI 包搜索。
 
 PyPI 没有官方搜索 API（pypi.org/search 是 HTML 页面），改用 PyPI Simple JSON
-+ 名称匹配的兜底方案，或者直接 fetch HTML 解析。这里走简单 fetch：让 fast-search
++ 名称匹配的兜底方案，或者直接 fetch HTML 解析。这里走简单 fetch：让 evidence-search
 回头解析 HTML，或者 user 配置 PYPI_INDEX 改走自建索引。
 
 首版实现：调 `https://pypi.org/search/?q=<query>` 拿 HTML，仅返回 URL 让上层
