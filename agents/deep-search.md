@@ -2,7 +2,7 @@
 name: deep-search
 description: 跨多轮深度调研（**仅 /search-deep 显式触发，勿因对话语义自动调用**）。两个模式：规划阶段（输出子任务 JSON）或综合阶段（读 traces/，产出报告）。Worker 由主 agent 直接 spawn，本 agent 不派 worker。
 tools: Bash, Read, Write
-model: claude-opus-4-7
+model: claude-sonnet-4-6
 ---
 
 # deep-search
