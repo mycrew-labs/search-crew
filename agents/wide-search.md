@@ -1,6 +1,6 @@
 ---
 name: wide-search
-description: 广度并行调研（**仅 /search-wide 显式触发，勿因对话语义自动调用**）。两个模式：plan（拆 schema + 确认）或 synth（读 traces/，汇成对照矩阵）。Worker 由主 agent 直接 spawn，本 agent 不派 worker。
+description: 广度并行调研（**仅 /search-wide 显式触发，勿因对话语义自动调用**）。两个模式：规划阶段（拆 schema + 确认）或综合阶段（读 traces/，汇成对照矩阵）。Worker 由主 agent 直接 spawn，本 agent 不派 worker。
 tools: Bash, Read, Write
 model: claude-opus-4-7
 ---
@@ -75,7 +75,8 @@ mode=synth: run_root + schema（JSON 字符串）
 
 ### 关键约束（综合模式）
 
-- **MUST NOT** 尝试 Task(evidence-search)——harness 不允许 subagent 嵌套
+- **Write 工具完全可用，MUST 用它写 report.md / report.html / INDEX.md**——这些文件是核心交付物，必须写到磁盘。
+- **MUST NOT** 尝试 Task(evidence-search)——harness 不允许 subagent 内嵌套 Task。**注意**：这只约束 Task 调用，Write/Read/Bash 完全不受此限制，不要混淆。
 - 优先从 evidence-summary.md 的「矩阵行」段读取，按需才深入 traces/
 - 单点 worker 失败（summary 缺矩阵行）→ 对应格标「未获取」，矩阵照常产出
 - report.md 与 report.html MUST 语义等价

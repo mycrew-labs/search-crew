@@ -35,6 +35,8 @@ python3 $CLAUDE_PLUGIN_ROOT/skills/search-toolkit/scripts/run_paths.py --new
 Task(deep-search, mode=plan, topic={{args}}, run_root=<run_root>)
 ```
 
+记录规划阶段消耗的 Claude token：从 Task 返回结果里找 `<usage>subagent_tokens: N</usage>` 标签，记为 `tokens_plan`。
+
 deep-search 返回**紧凑 JSON**（stdout，直接 parse，无需 Read 文件）：
 
 ```json
@@ -62,15 +64,17 @@ summary_path: <target_dir>/evidence-summary.md
 summary: <一句话>
 ```
 
-主 agent 收到 N×(summary_path, summary)——**只存这两个字符串，不读文件内容**。
+主 agent 收到 N×(summary_path, summary)——**只存这两个字符串，不读文件内容**。同时从各 Task 返回里解析 `subagent_tokens`，累加得 `tokens_workers`。
 
-### 6. 阶段三：综合（synth）
+### 6. 综合阶段
 
 ```
 Task(deep-search, mode=synth, run_root=<run_root>)
 ```
 
 只传 `run_root` 一个字符串。deep-search 自己 ls traces/ 发现所有 worker 产物，读 evidence-summary.md，综合出 report.md + report.html。
+
+从返回里解析 `subagent_tokens`，记为 `tokens_synth`。
 
 返回三行：
 ```
@@ -93,7 +97,16 @@ TaskUpdate 标 completed，Read `<run_root>/deep-search/report.md`。
 
 **块 2：核心结论**（用自己的话，必须附证据 URL / 关键数字，不编造）
 
-**块 3：cost 一行**（直接用 deep-search synth 返回的第三行）
+**块 3：cost + token 一行**
+
+把以下各项汇总后拼成一行展示：
+- API 用量：来自综合阶段返回的第三行（`finalize_usage.py` 的输出）
+- Claude token 总消耗：`tokens_plan + tokens_workers + tokens_synth`（各阶段 `subagent_tokens` 之和）
+
+格式示例：
+```
+📊 API 用量 ~$0.014（24 次调用 · 4 个源）· Claude token 约 161k（规划 17k + 采集 148k + 综合 31k）
+```
 
 **绝对不要**写出 `<run_root>` 路径、详细 cost 拆分。
 

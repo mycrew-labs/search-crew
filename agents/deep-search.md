@@ -1,6 +1,6 @@
 ---
 name: deep-search
-description: 跨多轮深度调研（**仅 /search-deep 显式触发，勿因对话语义自动调用**）。两个模式：plan（规划出子任务 JSON）或 synth（读 traces/，综合产出报告）。Worker 由主 agent 直接 spawn，本 agent 不派 worker。
+description: 跨多轮深度调研（**仅 /search-deep 显式触发，勿因对话语义自动调用**）。两个模式：规划阶段（输出子任务 JSON）或综合阶段（读 traces/，产出报告）。Worker 由主 agent 直接 spawn，本 agent 不派 worker。
 tools: Bash, Read, Write
 model: claude-opus-4-7
 ---
@@ -95,7 +95,9 @@ mode=synth: run_root（只需这一个路径）
 
 ### 关键约束（综合模式）
 
-- **MUST NOT** 尝试 Task(evidence-search)——harness 不允许 subagent 嵌套，会失败
+- **Write 工具完全可用，MUST 用它写 report.md / report.html / INDEX.md**——这些文件是本次的核心交付物，必须写到磁盘。
+- **MUST NOT** 尝试 Task(evidence-search)——harness 不允许 subagent 内嵌套 Task，会失败。**注意**：这只约束 Task 调用，Write/Read/Bash 完全不受此限制。
+- 不要把"不能用 Task"误解为"不能写文件"——两者毫无关系。
 - 优先从 evidence-summary.md 综合，按需才深入 evidence 文件
 - 不编造结论；未复核内容必须显式标注
 

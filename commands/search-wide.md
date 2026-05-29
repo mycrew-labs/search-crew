@@ -40,7 +40,7 @@ wide-search 先与用户确认对象清单 + 列 schema（×N 风险，必须等
 }
 ```
 
-**注意**：wide-search 在 plan 模式里会与用户交互确认 schema，你等它返回 JSON 再继续。
+**注意**：wide-search 在规划阶段会与用户交互确认 schema，你等它返回 JSON 再继续。从 Task 返回里解析 `subagent_tokens`，记为 `tokens_plan`。
 
 ### 4. 阶段二：并发采集（同 turn 发起所有 Task）
 
@@ -58,17 +58,17 @@ summary_path: <target_dir>/evidence-summary.md
 summary: <一句话>
 ```
 
-**主 agent 只存这两个字符串，不读文件内容**。
+**主 agent 只存这两个字符串，不读文件内容**。从各 Task 返回里解析 `subagent_tokens`，累加得 `tokens_workers`。
 
 超过 max_items 时分批（跑完一批再下一批），不一次铺满。
 
-### 5. 阶段三：综合矩阵（synth）
+### 5. 综合矩阵阶段
 
 ```
 Task(wide-search, mode=synth, run_root=<run_root>, schema=<JSON 字符串>)
 ```
 
-只传 run_root + schema JSON 字符串。wide-search 自己 ls traces/，读各 evidence-summary.md 的矩阵行段，汇成对照矩阵报告。
+只传 run_root + schema JSON 字符串。wide-search 自己 ls traces/，读各 evidence-summary.md 的矩阵行段，汇成对照矩阵报告。从 Task 返回里解析 `subagent_tokens`，记为 `tokens_synth`。
 
 返回三行：
 ```
@@ -87,7 +87,12 @@ Task(wide-search, mode=synth, run_root=<run_root>, schema=<JSON 字符串>)
 
 **块 2：矩阵速读**（点出关键对照结论，附证据；「未获取」格如实说明）
 
-**块 3：cost 一行**（synth 返回的第三行）
+**块 3：cost + token 一行**
+
+把 API 用量（综合阶段返回的第三行）与 Claude token 总量（`tokens_plan + tokens_workers + tokens_synth`）拼成一行：
+```
+📊 API 用量 ~$0.014（24 次调用 · 4 个源）· Claude token 约 161k（规划 Xk + 采集 Yk + 综合 Zk）
+```
 
 **绝对不要**写出 `<run_root>` 路径、详细 cost 拆分。
 
