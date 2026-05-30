@@ -33,11 +33,15 @@ model: claude-haiku-4-5-20251001
    - **全球/权威 lane**：`search.py --prefer serper --query "<英文版>"`；serper 失败 → `search.py --prefer jina --query "<英文版>" --with-content`
    - **中文 lane**：`search.py --prefer bocha --query "<中文版>"`
    - 两 lane 都失败 → 回落 Claude 内置 WebSearch
-3. **merge + 去重**：按 URL 去重合并，ranking（0-10）+ 推荐等级，保留 top 5-8。
-4. **补抓正文（并发）**：serper/bocha 只给 snippet/summary；top 结果用 `fetch.py <url1> <url2> ...` 一次性并发补抓。jina 已带 content 免抓。
-5. **写 evidence 文件**：每条结果 → `<target_dir>/evidence-search-NNN.md`，YAML front-matter 含 url/ranking/recommended/keywords/lane；关键段加 `### anchor: <slug>`。
-6. **写 INDEX.md**：`<target_dir>/INDEX.md`，wiki 风格（文件列表按 ranking + 简介 + 关键词 + Next-Read）。
-7. **写 evidence-summary.md**（**关键输出**）：`<target_dir>/evidence-summary.md`，≤60 行，精炼结构：
+3. **merge + 去重**：按 URL 去重合并，ranking（0-10）+ 推荐等级，保留 top 5-8。**去重要看「真独立」**——多篇都引用同一份厂商新闻稿/同一份原始测评，算 1 个独立源，别当多源。
+4. **判定证据属性**（关键，供上层按「证据本身」论证）：给每条标三个属性——
+   - **证据类型**：`客观规格`（官方/第三方实测的硬指标）/ `独立测评`（独立机构横评）/ `用户体验`（社区真实使用反馈）/ `厂商宣传`（品牌自述，利益相关）/ `二手转述`（无原始出处的转载）。**领域相关**：参数信规格/实测，体验信用户社区，排名信独立测评。
+   - **firsthand**：能追到原始数据/官方规格/原始实测 → `true`；"据说""有人测过"的转述 → `false`。
+   - **lane**：来自中文源 `zh` 还是英文源 `en`。
+5. **补抓正文（并发）**：serper/bocha 只给 snippet/summary；top 结果用 `fetch.py <url1> <url2> ...` 一次性并发补抓。jina 已带 content 免抓。
+6. **写 evidence 文件**：每条结果 → `<target_dir>/evidence-search-NNN.md`，YAML front-matter 含 `url/ranking/recommended/keywords/lane/evidence_type/firsthand`；关键段加 `### anchor: <slug>`。
+7. **写 INDEX.md**：`<target_dir>/INDEX.md`，wiki 风格（文件列表按 ranking + 简介 + 关键词 + Next-Read）。
+8. **写 evidence-summary.md**（**关键输出**）：`<target_dir>/evidence-summary.md`，≤60 行，精炼结构：
 
    ```markdown
    # Evidence Summary · <task_id> · <query 一句话>
@@ -45,32 +49,32 @@ model: claude-haiku-4-5-20251001
    ## 子任务
    <本次要回答的具体问题>
 
-   ## 核心发现（按 ranking）
-   - <结论1>（来源 [n]）
-   - <结论2>（来源 [n]）
-   - ⚠️ 分歧：<源A 说 X，源B 说 Y>（若有）
+   ## 核心发现（按 ranking，标证据强度）
+   - <结论1>（来源 [n]·一手·独立印证 中1/英2）
+   - <结论2>（来源 [n]·厂商宣传·待第三方佐证）
+   - ⚠️ 分歧：<源A 说 X，源B 说 Y>（若有，附原因推测）
 
    ## 来源
-   | # | ranking | lane | url |
-   |---|---|---|---|
-   | 1 | 9.5 | serper | https://... |
-   | 2 | 8.0 | bocha  | https://... |
+   | # | ranking | lane | 证据类型 | 一手 | url |
+   |---|---|---|---|---|---|
+   | 1 | 9.5 | en | 独立测评 | ✓ | https://... |
+   | 2 | 8.0 | zh | 用户体验 | ✗ | https://... |
 
    ## 证据目录
    <target_dir>（N 个文件 + INDEX.md）
    ```
 
-   **wide-search 场景额外加**：
+   **wide-search 场景额外加**（每格标证据类型 + 一手/二手，别只填数字）：
    ```markdown
    ## 矩阵行（object: <对象名>）
-   | 列 | 数据 | 来源 URL |
-   |---|---|---|
-   | <column1> | <数据/未获取> | https://... |
-   | <column2> | ... | ... |
+   | 列 | 数据 | 证据类型 | 一手 | 来源 URL |
+   |---|---|---|---|---|
+   | <column1> | <数据/未获取> | 客观规格 | ✓ | https://... |
+   | <column2> | ... | 用户体验 | ✗ | ... |
    ```
 
-8. **写 usage summary**：`finalize_usage.py --subagent evidence-search <target_dir>`
-9. **返回两行**（上级主 agent 只读这两行）：
+9. **写 usage summary**：`finalize_usage.py --subagent evidence-search <target_dir>`
+10. **返回两行**（上级主 agent 只读这两行）：
    ```
    summary_path: <target_dir>/evidence-summary.md
    summary: <一句话概括本次发现>

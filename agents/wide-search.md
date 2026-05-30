@@ -77,12 +77,14 @@ ls <run_root>/wide-search/traces/
 
 **文件 1：`<run_root>/wide-search/report.md`**
 - 行 = 对象，列 = schema 维度
-- 每格附来源 URL；缺数据标「未获取」
-- 注明单点 worker 失败的格，矩阵仍完整输出
+- **每格附证据背书**，不只填数字：标数据来源类型（官方实测 ✓ / 厂商标称 / 用户体验）。如 `ΔE 0.68 ✓官方实测` vs `~ΔE 1.5 厂商标称`。
+- 同一格多源时倾向一手 + 独立印证多的；冲突值标 `⚠️` 并在脚注说明取舍。
+- 每格附来源 URL；缺数据标「未获取」（单点 worker 失败照常输出整表）。
+- 矩阵后 MUST 含一段 `## ⚡ 异常 / 少数派信号`——指出哪些对象存在与主流认知相悖的声音（热门型号的隐藏缺陷、冷门型号的意外亮点）；无则显式写「未发现显著异常信号」。
 
 **文件 2：`<run_root>/wide-search/report.html`**
 - 可按列排序的表格
-- 与 report.md 语义等价（「未获取」格两版一致）
+- 与 report.md 语义等价（「未获取」格、证据背书、异常段两版一致）
 
 **文件 3：`<run_root>/wide-search/INDEX.md`**
 - 指向 report.html、report.md、traces/
